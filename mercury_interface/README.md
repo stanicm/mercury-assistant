@@ -15,7 +15,7 @@
   limitations under the License.
 -->
 
-# Milos' UI Playground
+# Mercury Interface
 
 ## Disclaimer
 
