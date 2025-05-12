@@ -123,3 +123,12 @@ Other options include TTS addition w/ streaming and 3D avatar development, then 
 ## NVIDIA Riva Python Client
 
 The `riva_python_client` folder contains the official NVIDIA Riva Python client repository, downloaded from [https://github.com/nvidia-riva/python-clients.git](https://github.com/nvidia-riva/python-clients.git). This client is used for speech recognition capabilities in the application.
+
+## Deployment Notes
+
+When deploying this application to different environments, consider the following potential path modifications:
+
+- **Node.js and Sox Installation**: Ensure that the paths for Node.js and Sox are correctly set in your environment. Adjust the installation commands if necessary.
+- **NVIDIA Riva Client**: The path to the NVIDIA Riva client may need to be updated based on your installation location. Check the `server.js` file for any hardcoded paths.
+- **API Keys**: Replace any hardcoded API keys with environment variables or secure storage solutions to enhance security.
+- **Output File Paths**: Verify that the output file paths in the code are suitable for your environment, especially if using a different operating system.
