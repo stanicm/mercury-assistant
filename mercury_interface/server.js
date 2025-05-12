@@ -9,13 +9,22 @@ const port = process.env.PORT || 5000;
 
 // Define openaiConfig and modelToUse variables
 let openaiConfig = {
-  apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key-here',
+  apiKey: process.env.OPENAI_API_KEY,
 };
 let modelToUse = 'gpt-3.5-turbo'; // Default model
 
 // Set up middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Verify environment variables are set
+if (!process.env.NVIDIA_API_KEY) {
+  console.warn('Warning: NVIDIA_API_KEY environment variable is not set');
+}
+
+if (!process.env.OPENAI_API_KEY) {
+  console.warn('Warning: OPENAI_API_KEY environment variable is not set');
+}
 
 // Global variable to store the recording process
 let recordProcess = null;
@@ -148,6 +157,9 @@ app.post('/api/chat', async (req, res) => {
   try {
     // NVIDIA-specific configuration
     if (model.includes('llama-3.1-405b') || model.includes('meta/')) {
+      if (!process.env.NVIDIA_API_KEY) {
+        return res.status(500).json({ error: 'NVIDIA API key not configured' });
+      }
       openaiConfig = {
         apiKey: process.env.NVIDIA_API_KEY,
         baseURL: 'https://integrate.api.nvidia.com/v1',
@@ -156,11 +168,13 @@ app.post('/api/chat', async (req, res) => {
     }
     // NIM LLM configuration
     else if (model.includes('nemotron')) {
+      if (!process.env.NVIDIA_API_KEY) {
+        return res.status(500).json({ error: 'NVIDIA API key not configured' });
+      }
       openaiConfig = {
         apiKey: process.env.NVIDIA_API_KEY,
         baseURL: 'https://integrate.api.nvidia.com/v1',
       };
-      //modelToUse = 'nvdev/nvidia/llama-3.1-nemotron-ultra-253b-v1';
       modelToUse = 'nvdev/nvidia/llama-3.3-nemotron-super-49b-v1';
     }
     // NIM LLM configuration
@@ -169,12 +183,15 @@ app.post('/api/chat', async (req, res) => {
         apiKey: 'not-required',
         baseURL: 'http://0.0.0.0:8000',
       };
-      modelToUse = 'meta/llama-3.1-8b-instruct'; // This exact model name is critical
+      modelToUse = 'meta/llama-3.1-8b-instruct';
     }
     // OpenAI configuration
     else if (model.includes('gpt')) {
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: 'OpenAI API key not configured' });
+      }
       openaiConfig = {
-        apiKey: process.env.OPENAI_API_KEY || 'your-openai-api-key-here',
+        apiKey: process.env.OPENAI_API_KEY,
       };
       modelToUse = model;
     }
@@ -190,62 +207,73 @@ app.post('/api/chat', async (req, res) => {
     }
     // Mercury Agent configuration
     else if (model === 'mercury-agent') {
-      try {
-        const { spawn } = require('child_process');
-        const aiqProcess = spawn('aiq', [
-          'run',
-          '--config_file=/home/milos/mercury-assistant/mercury_agent/configs/config.yml',
-          '--input', message
-        ]);
-
-        let output = '';
-        let error = '';
-
-        aiqProcess.stdout.on('data', (data) => {
-          output += data.toString();
-        });
-
-        aiqProcess.stderr.on('data', (data) => {
-          error += data.toString();
-        });
-
-        aiqProcess.on('close', (code) => {
-          if (code !== 0) {
-            console.error(`Mercury Agent process exited with code ${code}`);
-            return res.status(500).json({
-              error: `Mercury Agent error: ${error}`
-            });
-          }
-
-          // Extract the actual response from the output
-          const parts = output.split('Workflow Result:');
-          if (parts.length > 1) {
-            // Get the last part (the actual result)
-            const resultPart = parts[parts.length - 1];
-            
-            // Extract the content between the quotes
-            const match = resultPart.match(/\["(.*?)"\]/s);
-            if (match && match[1]) {
-              // Clean up the response
-              const cleanResponse = match[1]
-                .replace(/\\n/g, '\n')  // Convert \n to actual newlines
-                .trim();
-              
-              res.json({ text: cleanResponse });
-            } else {
-              res.json({ text: output.trim() });
-            }
-          } else {
-            res.json({ text: output.trim() });
-          }
-        });
-      } catch (error) {
-        console.error('Error executing Mercury Agent:', error);
-        return res.status(500).json({
-          error: `Failed to execute Mercury Agent: ${error.message}`
-        });
+      if (!process.env.NVIDIA_API_KEY) {
+        return res.status(500).json({ error: 'NVIDIA API key not configured' });
       }
-      return;
+      
+      console.log('Starting Mercury Agent process...');
+      // Execute Mercury Agent process
+      const mercuryProcess = spawn('aiq', [
+        'run',
+        '--config_file=/home/milos/mercury-assistant/mercury_agent/configs/config.yml',
+        '--input',
+        message
+      ]);
+
+      let output = '';
+      let error = '';
+
+      mercuryProcess.stdout.on('data', (data) => {
+        const chunk = data.toString();
+        console.log('Mercury Agent stdout chunk:', chunk);
+        output += chunk;
+      });
+
+      mercuryProcess.stderr.on('data', (data) => {
+        const chunk = data.toString();
+        console.log('Mercury Agent stderr chunk:', chunk);
+        error += chunk;
+      });
+
+      mercuryProcess.on('close', (code) => {
+        console.log('Mercury Agent process closed with code:', code);
+        console.log('Full output:', output);
+        console.log('Full error:', error);
+
+        if (code !== 0) {
+          console.error('Mercury Agent process exited with code:', code);
+          console.error('Error:', error);
+          return res.status(500).json({ error: 'Mercury Agent process failed' });
+        }
+
+        // Combine stdout and stderr for processing
+        const combinedOutput = output + error;
+
+        // Clean the output by removing ANSI color codes and other control characters
+        const cleanOutput = combinedOutput
+          .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '') // Remove ANSI color codes
+          .replace(/\x1B\]0;/g, '')              // Remove other ANSI escape sequences
+          .replace(/\r/g, '')                    // Remove carriage returns
+          .trim();
+
+        console.log('Cleaned output:', cleanOutput);
+
+        // Find the Workflow Result section
+        const workflowResultMatch = cleanOutput.match(/Workflow Result:\s*\["(.*?)"\]/s);
+        if (workflowResultMatch && workflowResultMatch[1]) {
+          const cleanContent = workflowResultMatch[1]
+            .replace(/\\n/g, '\n')  // Replace escaped newlines with actual newlines
+            .trim();                // Remove extra whitespace
+          
+          console.log('Extracted content:', cleanContent);
+          return res.json({ text: cleanContent });
+        }
+
+        // If we couldn't find the expected format, return an error
+        console.error('Could not find Workflow Result with expected format');
+        return res.status(500).json({ error: 'Could not parse Mercury Agent response' });
+      });
+      return; // Important: return here to prevent further execution
     }
     
     // Configure OpenAI client after setting the configuration

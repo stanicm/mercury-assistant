@@ -19,21 +19,19 @@ document.addEventListener('DOMContentLoaded', function() {
     let isRecording = false;
     let mediaRecorder = null;
     let audioChunks = [];
+    let isSending = false;  // Add flag to prevent double sends
     
     // Event Listeners
     modelDropdown.addEventListener('change', handleModelChange);
     
-    // Direct onclick handler for send button
-    document.getElementById('send-btn').onclick = function() {
-        console.log("Send button clicked via onclick");
-        sendMessage();
-    };
-    
-    // Also add the event listener as a backup
+    // Single event handler for send button
     if (sendButton) {
-        sendButton.addEventListener('click', function() {
-            console.log("Send button clicked via event listener");
-            sendMessage();
+        sendButton.addEventListener('click', function(e) {
+            e.preventDefault();  // Prevent any default behavior
+            console.log("Send button clicked");
+            if (!isSending) {  // Only send if not already sending
+                sendMessage();
+            }
         });
     }
     
@@ -41,7 +39,9 @@ document.addEventListener('DOMContentLoaded', function() {
     messageInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            sendMessage();
+            if (!isSending) {  // Only send if not already sending
+                sendMessage();
+            }
         }
     });
     
@@ -65,6 +65,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function sendMessage() {
+        if (isSending) {  // Prevent double sends
+            console.log("Already sending a message, ignoring");
+            return;
+        }
+        
         console.log('sendMessage function called');
         const message = messageInput.value.trim();
         
@@ -73,6 +78,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        isSending = true;  // Set flag to prevent double sends
         console.log("Sending message:", message);
         
         // Add user message to chat
@@ -125,6 +131,9 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error:', error);
             removeLoadingIndicator(loadingId);
             addMessageToChat('ai', 'Sorry, there was an error processing your request: ' + error.message);
+        })
+        .finally(() => {
+            isSending = false;  // Reset flag when done
         });
     }
     
