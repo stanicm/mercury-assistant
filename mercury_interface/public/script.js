@@ -414,53 +414,6 @@ document.addEventListener('DOMContentLoaded', function() {
         else return (bytes / 1048576).toFixed(1) + ' MB';
     }
 
-    function addMessageToChat(sender, text, attachments = []) {
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'ai-message');
-        
-        // Add text content
-        if (text) {
-          const textP = document.createElement('p');
-          textP.textContent = text;
-          messageDiv.appendChild(textP);
-        }
-        
-        // Add attachments if any
-        // [your existing attachment code]
-        
-        chatMessages.appendChild(messageDiv);
-        
-        // Ensure scroll to bottom
-        setTimeout(() => {
-          chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 10); // Small delay to ensure content is rendered
-    }
-/*
-    function adjustMessageSize() {
-        const messages = document.querySelectorAll('.message');
-        messages.forEach(message => {
-          // Reset any previously set max-height
-          message.style.maxHeight = '';
-          
-          // Check if content is larger than visible area
-          const isOverflowing = message.scrollHeight > message.clientHeight;
-          
-          if (isOverflowing) {
-            // Set a reasonable max-height and enable scrolling for extremely long messages
-            message.style.maxHeight = '80vh';
-            message.style.overflowY = 'auto';
-          }
-        });
-    }
-      
-    // Call this after adding a new message
-    function addMessageToChat(sender, text, attachments = []) {
-        // Existing code...
-        chatMessages.appendChild(messageDiv);
-        adjustMessageSize();
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
-*/
     // Add CSS for loading animation
     const style = document.createElement('style');
     style.textContent = `
@@ -507,4 +460,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Log that script has loaded
     console.log("Chat interface script loaded successfully");
+
+    // Ensure marked library is included
+    if (typeof marked === 'undefined') {
+        console.error('Marked library is not loaded. Please include it in your HTML.');
+    }
+
+    // Function to display the response in a formatted way
+    function displayResponse(response) {
+        const responseElement = document.getElementById('response');
+        const markdownContent = document.createElement('div');
+        markdownContent.classList.add('markdown-content');
+        markdownContent.innerHTML = marked.parse(response); // Use marked to render markdown
+        responseElement.appendChild(markdownContent);
+    }
 });
