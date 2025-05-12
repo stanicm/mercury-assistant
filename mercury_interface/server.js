@@ -188,6 +188,65 @@ app.post('/api/chat', async (req, res) => {
       // Would need to get custom endpoint details from request
       return res.status(501).json({ error: 'Custom endpoint not yet implemented' });
     }
+    // Mercury Agent configuration
+    else if (model === 'mercury-agent') {
+      try {
+        const { spawn } = require('child_process');
+        const aiqProcess = spawn('aiq', [
+          'run',
+          '--config_file=/home/milos/mercury-assistant/mercury_agent/configs/config.yml',
+          '--input', message
+        ]);
+
+        let output = '';
+        let error = '';
+
+        aiqProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        aiqProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        aiqProcess.on('close', (code) => {
+          if (code !== 0) {
+            console.error(`Mercury Agent process exited with code ${code}`);
+            return res.status(500).json({
+              error: `Mercury Agent error: ${error}`
+            });
+          }
+
+          // Extract the actual response from the output
+          const parts = output.split('Workflow Result:');
+          if (parts.length > 1) {
+            // Get the last part (the actual result)
+            const resultPart = parts[parts.length - 1];
+            
+            // Extract the content between the quotes
+            const match = resultPart.match(/\["(.*?)"\]/s);
+            if (match && match[1]) {
+              // Clean up the response
+              const cleanResponse = match[1]
+                .replace(/\\n/g, '\n')  // Convert \n to actual newlines
+                .trim();
+              
+              res.json({ text: cleanResponse });
+            } else {
+              res.json({ text: output.trim() });
+            }
+          } else {
+            res.json({ text: output.trim() });
+          }
+        });
+      } catch (error) {
+        console.error('Error executing Mercury Agent:', error);
+        return res.status(500).json({
+          error: `Failed to execute Mercury Agent: ${error.message}`
+        });
+      }
+      return;
+    }
     
     // Configure OpenAI client after setting the configuration
     const openai = new OpenAI(openaiConfig);
