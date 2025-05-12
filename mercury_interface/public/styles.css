@@ -1,0 +1,383 @@
+:root {
+    --primary-color: #4a6fa5;
+    --secondary-color: #6c757d;
+    --background-color: #f8f9fa;
+    --chat-bg: #ffffff;
+    --user-msg-bg: #e9f5ff;
+    --ai-msg-bg: #f0f0f0;
+    --border-color: #dee2e6;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: #333;
+    line-height: 1.6;
+}
+
+.app-container {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 280px;
+    background-color: #fff;
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.sidebar h2 {
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.model-selector {
+    margin-bottom: 25px;
+}
+
+#model-dropdown {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.chat-history {
+    margin-top: 10px;
+}
+
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--chat-bg);
+    border-radius: 8px;
+    margin: 15px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%; /* Ensure full height usage */
+}
+
+.message {
+    display: grid;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    max-width: 80%;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    word-break: break-word;
+  }
+
+.user-message {
+    background-color: var(--user-msg-bg);
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.ai-message {
+    background-color: var(--ai-msg-bg);
+    align-self: flex-start;
+    min-height: min-content;
+  }
+
+.input-area {
+    border-top: 1px solid var(--border-color);
+    padding: 15px;
+    background-color: #fff;
+}
+
+.upload-options {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.upload-options button {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-options button:hover {
+    background-color: #f0f0f0;
+}
+
+.message-input-container {
+    display: flex;
+    gap: 10px;
+}
+
+#message-input {
+    flex: 1;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    resize: none;
+    height: 60px;
+    font-family: inherit;
+}
+
+#send-btn {
+    padding: 0 20px;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#send-btn:hover {
+    background-color: #3a5a80;
+}
+
+.hidden {
+    display: none;
+}
+
+.file-preview, .image-preview {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.file-preview p, .image-preview p {
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+
+.thumbnail {
+    max-width: 100px;
+    max-height: 100px;
+    margin-right: 10px;
+    border-radius: 4px;
+}
+
+.loading-dots {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    background-color: #888;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.loading-dots span:nth-child(3) {
+    animation-delay: 1s;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 1;
+    }
+}
+
+.recording {
+    background-color: #ff4d4d !important;
+    color: white !important;
+}
+
+/* Add to your CSS file */
+.markdown-content {
+    line-height: 1.6;
+    overflow-wrap: break-word;
+}
+
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3, 
+.markdown-content h4, 
+.markdown-content h5, 
+.markdown-content h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+}
+
+.markdown-content h1 { font-size: 1.8em; }
+.markdown-content h2 { font-size: 1.6em; }
+.markdown-content h3 { font-size: 1.4em; }
+.markdown-content h4 { font-size: 1.2em; }
+
+.markdown-content p {
+    margin: 0.8em 0;
+}
+
+.markdown-content ul, 
+.markdown-content ol {
+    margin: 0.8em 0;
+    padding-left: 2em;
+}
+
+.markdown-content table {
+    border-collapse: collapse;
+    margin: 1em 0;
+    width: 100%;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.markdown-content table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.markdown-content code {
+    background-color: #f5f5f5;
+    border-radius: 3px;
+    font-family: monospace;
+    padding: 2px 4px;
+}
+
+.markdown-content pre {
+    background-color: #f5f5f5;
+    border-radius: 3px;
+    padding: 1em;
+    overflow-x: auto;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #ddd;
+    margin: 0.8em 0;
+    padding-left: 1em;
+    color: #666;
+}
+
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Add these styles to your existing CSS */
+
+.markdown-content {
+    line-height: 1.6;
+    overflow-wrap: break-word;
+}
+
+.markdown-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    font-size: 1.4em;
+    color: #4a6fa5;
+}
+
+.markdown-content h4 {
+    margin-top: 1.2em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    font-size: 1.2em;
+    color: #4a6fa5;
+}
+
+.markdown-content p {
+    margin: 0.8em 0;
+}
+
+.markdown-content strong {
+    font-weight: bold;
+    color: #333;
+}
+
+.markdown-content ul, 
+.markdown-content ol {
+    margin: 0.8em 0;
+    padding-left: 2em;
+}
+
+.markdown-content ul {
+    list-style-type: disc;
+}
+
+.markdown-content ol {
+    list-style-type: decimal;
+}
+
+.markdown-content li {
+    margin-bottom: 0.5em;
+}
+
+.markdown-content li > ul,
+.markdown-content li > ol {
+    margin-top: 0.5em;
+    margin-bottom: 0;
+}
+
+/* Nested list styling */
+.markdown-content ul ul,
+.markdown-content ol ul {
+    list-style-type: circle;
+}
+
+.markdown-content ul ul ul,
+.markdown-content ol ul ul {
+    list-style-type: square;
+}
+
+/* Add specific styling for the Japanese architecture content */
+.markdown-content h3 strong {
+    color: #4a6fa5;
+    font-size: 1.1em;
+}
+
+.markdown-content li strong {
+    color: #333;
+}
+
+/* Improve readability for nested content */
+.markdown-content li p {
+    margin: 0.4em 0;
+}
+

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.0.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <div class="sidebar">
+            <h2>Models</h2>
+            <div class="model-selector">
+                <select id="model-dropdown">
+                    <option value="llama-3.1-405b">Llama 3.1 405B (NVIDIA)</option>
+                    <option value="nemotron">Nemotron Super 49B</option>
+                    <option value="nim-llm">NIM LLM (0.0.0.0:8000)</option>
+                    <option value="gpt-4o-mini">GPT-4o Mini</option>
+                    <option value="llama-3.2">Llama 3.2</option>
+                    <option value="claude">Claude</option>
+                    <option value="custom">Custom Endpoint</option>
+                </select>
+                <button id="save-btn">Save</button>
+            </div>
+            <div id="custom-endpoint" class="hidden">
+                <!-- Custom endpoint configuration fields -->
+            </div>
+            <h2>Chat History</h2>
+            <div class="chat-history">
+                <!-- Chat history items will go here -->
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="chat-container">
+                <div id="chat-messages" class="chat-messages">
+                    <!-- Messages will be added here -->
+                    <div class="message ai-message">
+                        <div class="markdown-content">
+                            <p>Hello! I'm your AI assistant. How can I help you today?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="input-area">
+                    <div class="upload-options">
+                        <button id="file-upload-btn">📄</button>
+                        <input type="file" id="file-upload" multiple style="display: none">
+                        <button id="image-upload-btn">🖼️</button>
+                        <input type="file" id="image-upload" accept="image/*" multiple style="display: none">
+                        <button id="mic-btn"><span class="icon">🎤</span></button>
+                    </div>
+                    <div class="message-input-container">
+                        <textarea id="message-input" placeholder="Type your message here..."></textarea>
+                        <button id="send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
