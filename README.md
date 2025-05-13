@@ -42,7 +42,7 @@ When used together, Mercury Interface provides a user-friendly way to access all
 ## Prerequisites
 
 ### System Requirements
-- Python 3.10 or higher
+- Python 3.12 or higher (required for Mercury Agent; developed using 3.12.7)
 - Node.js 20.x or higher (for Mercury Interface)
 
   #### Ubuntu/Debian
