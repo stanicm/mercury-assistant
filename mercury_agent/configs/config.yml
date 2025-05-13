@@ -1,0 +1,88 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# General system configuration
+general:
+  use_uvloop: true  # Enable uvloop for improved async performance
+
+# Function configurations for various tools and agents
+functions:
+  # Internet search tool using Tavily API
+  internet_search:
+    _type: tavily_internet_search
+
+  # RAG (Retrieval Augmented Generation) tool configuration
+  nvbp_rag:
+    _type: nvbp_rag
+    base_url: "http://0.0.0.0:8081/v1"  # RAG server endpoint
+    collection_name: "SPH"              # Knowledge base collection name
+    top_k: 3                           # Number of top results to retrieve
+    timeout: 120                       # Request timeout in seconds
+    use_knowledge_base: true           # Enable knowledge base retrieval
+
+  # LangChain research tool configuration
+  langchain_researcher_tool:
+    _type: langchain_researcher_tool
+    web_tool: internet_search          # Use internet search as a tool
+    llm_name: nim_llm                  # LLM to use for topic extraction
+
+  # Haystack chitchat agent configuration
+  haystack_chitchat_agent:
+    _type: haystack_chitchat_agent
+    llm_name: nvdev/meta/llama-3.3-70b-instruct
+    #llm_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct  # Model for general conversation
+    timeout: 90                        # Request timeout in seconds
+
+  # Wikipedia search tool configuration
+  wikipedia_search:
+    _type: wiki_search
+    llm_name: nim_llm                  # LLM to use for topic extraction
+    max_results: 3                     # Maximum number of results to return
+
+# Language Model configurations
+llms:
+  # Primary LLM for general tasks
+  nim_llm:
+    _type: nim
+    model_name: nvdev/meta/llama-3.3-70b-instruct
+    #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
+    temperature: 0.0                   # Lower temperature for more focused responses
+    timeout: 180                       # Request timeout in seconds
+
+  # LLM for chitchat with higher temperature for more creative responses
+  chitchat_llm:
+    _type: nim
+    model_name: nvdev/meta/llama-3.3-70b-instruct
+    #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
+    temperature: 0.7                   # Higher temperature for more creative responses
+    max_tokens: 256                    # Maximum response length
+    timeout: 180                       # Request timeout in seconds
+
+# Embedding model configuration
+embedders:
+  nim_embedder:
+    _type: nim
+    model_name: nvdev/nvidia/nv-embedqa-e5-v5  # Model for text embeddings
+    truncate: END                      # Truncation strategy
+    timeout: 180                       # Request timeout in seconds
+
+# Main workflow configuration
+workflow:
+  _type: aiq_mercury_agent/mercury_agent  # Workflow type
+  llm: nim_llm                            # Primary LLM to use
+  data_dir: ./mercury/README.md           # Data directory for RAG
+  rag_tool: nvbp_rag                      # RAG tool to use
+  research_tool: wikipedia_search         # Research tool to use
+  chitchat_agent: haystack_chitchat_agent # Chitchat agent to use 
