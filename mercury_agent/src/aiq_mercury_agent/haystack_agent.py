@@ -77,10 +77,21 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
         model=tool_config.llm_name,
         api_url="https://integrate.api.nvidia.com/v1",
         model_arguments={
-            "temperature": 0.2,  # Lower temperature for more focused responses
-            "top_p": 0.7,       # Nucleus sampling parameter
+            "temperature": 0.5,  # Increased for more personality
+            "top_p": 0.9,       # Increased for more variety
             "max_tokens": 1024,  # Maximum length of generated response
-        },
+            "messages": [
+                {
+                    "role": "system",
+                    "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
+                    You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
+                    You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
+                    You occasionally use analogies and examples to make your explanations more relatable.
+                    You're patient and thorough in your responses, but also concise when appropriate. 
+                    If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
+                }
+            ]
+        }
     )
 
     # Warm up the generator for faster initial response
