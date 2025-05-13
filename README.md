@@ -1,5 +1,7 @@
 # Mercury AI Assistant
 
+![Mercury Banner](mercury_interface/public/Mercury_banner.jpg)
+
 Mercury is an AI assistant built using the NVIDIA AIQ Toolkit, NVIDIA RAG Blueprint*, NVIDIA RIVA and running NVIDIA NIM-deployed models that combines multiple frameworks (LangChain, LlamaIndex, and Haystack) to provide a versatile prototyping/learning platform. It consists of two main components that can be used independently or together:
 
 1. **Mercury Agent**: An agentic backend system (based on NVIDIA's Agent Intelligence Toolkit) that provides:
