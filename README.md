@@ -43,6 +43,10 @@ When used together, Mercury Interface provides a user-friendly way to access all
 
 ### Mercury Agent Requirements
 - AIQ Toolkit (installed from NVIDIA's package repository)
+  ```bash
+  pip install agentiq
+  pip install 'agentiq[langchain]'  # Installs AIQ with LangChain integration
+  ```
 - LangChain, LlamaIndex, and Haystack packages
 
 ### Mercury Interface Requirements
