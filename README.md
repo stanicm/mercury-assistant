@@ -42,28 +42,28 @@ When used together, Mercury Interface provides a user-friendly way to access all
 ### System Requirements
 - Python 3.10 or higher
 - Node.js 20.x or higher (for Mercury Interface)
-  ```bash
-  # Ubuntu/Debian
-  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-  sudo apt-get install -y nodejs
 
+  # Ubuntu/Debian
+  ```bash
+  # 1. Update your package list:
+   sudo apt update
+
+   # 2. Install Node.js and npm using NodeSource:
+   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+
+   # 3. Verify the installation:
+   node --version
+   npm --version
+   ```
+  
   # macOS (using Homebrew)
   brew install node@20
 
   # Windows - NOT TESTED
   # Download and install from https://nodejs.org/
   ```
-- Sox for audio recording (required for voice input in Mercury Interface)
-  ```bash
-  # Ubuntu/Debian
-  sudo apt-get install sox
-
-  # macOS (using Homebrew)
-  brew install sox
-
-  # Windows - NOT TESTED
-  # Download and install from https://sourceforge.net/projects/sox/
-  ```
+  
 - NVIDIA API Key for LLM access
 
 ### Required Python Packages
@@ -78,12 +78,51 @@ When used together, Mercury Interface provides a user-friendly way to access all
    pip install langchain llama-index haystack
    ```
 
-### Optional Components
-- NVIDIA Riva client for speech recognition (optional, only needed if you want to use ASR capabilities in the interface)
-  ```bash
-   # Install Riva client if you want ASR capabilities
+### Installing NVIDIA Riva Client, Sox and Prerequisites
+
+For speech recognition functionality, you'll need to install the NVIDIA Riva client and its prerequisites and make sure you have the necessary NVIDIA API keys configured in your environment.:
+
+1. Install PortAudio development files:
+   ```bash
+   sudo apt-get install portaudio19-dev
+   ```
+
+2. Install PyAudio:
+   ```bash
+   pip install pyaudio
+   ```
+
+3. Install NVIDIA Riva client:
+   ```bash
    pip install nvidia-riva-client
    ```
+   
+- Sox for audio recording (required for voice input in Mercury Interface) - required for the microphone recording feature. The server uses Sox to record audio in the correct format (16-bit WAV, mono channel, 16kHz sample rate) for the Parakeet ASR service.
+
+  
+  # Ubuntu/Debian
+  ```bash
+  sudo apt-get install sox
+  ```
+
+  # macOS (using Homebrew)
+  ```bash
+  brew install sox
+  ```
+
+  # Windows - NOT TESTED
+  ```bash
+  # Download and install from https://sourceforge.net/projects/sox/
+  ```
+  
+## Deployment Notes
+
+When deploying this application to different environments, consider the following potential path modifications:
+
+- **Node.js and Sox Installation**: Ensure that the paths for Node.js and Sox are correctly set in your environment. Adjust the installation commands if necessary.
+- **NVIDIA Riva Client**: The path to the NVIDIA Riva client may need to be updated based on your installation location. Check the `server.js` file for any hardcoded paths.
+- **API Keys**: Make sure your API keys are properly exported as environment variables.
+- **Output File Paths**: Verify that the output file paths (e.g. where sox stores its .wav file before sending it to the ASR model) in the code are suitable for your environment, especially if using a different operating system.
 
 ## Installation
 
@@ -110,66 +149,6 @@ When used together, Mercury Interface provides a user-friendly way to access all
    export NVIDIA_API_KEY="your-api-key"
    export OPENAI_API_KEY="your-openai-api-key"  # Optional, for OpenAI models
    ```
-
-## Deployment Notes
-
-When deploying this application to different environments, consider the following potential path modifications:
-
-- **Node.js and Sox Installation**: Ensure that the paths for Node.js and Sox are correctly set in your environment. Adjust the installation commands if necessary.
-- **NVIDIA Riva Client**: The path to the NVIDIA Riva client may need to be updated based on your installation location. Check the `server.js` file for any hardcoded paths.
-- **API Keys**: Make sure your API keys are properly exported as environment variables.
-- **Output File Paths**: Verify that the output file paths (e.g. where sox stores its .wav file before sending it to the ASR model) in the code are suitable for your environment, especially if using a different operating system.
-
-### Installing Node.js on Ubuntu
-
-To install Node.js on Ubuntu, follow these steps:
-
-1. Update your package list:
-   ```bash
-   sudo apt update
-   ```
-
-2. Install Node.js and npm using NodeSource:
-   ```bash
-   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-   sudo apt-get install -y nodejs
-   ```
-
-3. Verify the installation:
-   ```bash
-   node --version
-   npm --version
-   ```
-
-### Installing Sox on Ubuntu
-
-For audio recording functionality, install Sox:
-```bash
-sudo apt-get install sox
-```
-
-Note: Sox is required for the microphone recording feature. The server uses Sox to record audio in the correct format (16-bit WAV, mono channel, 16kHz sample rate) for the Parakeet ASR service.
-
-### Installing NVIDIA Riva Client and Prerequisites
-
-For speech recognition functionality, you'll need to install the NVIDIA Riva client and its prerequisites:
-
-1. Install PortAudio development files:
-   ```bash
-   sudo apt-get install portaudio19-dev
-   ```
-
-2. Install PyAudio:
-   ```bash
-   pip install pyaudio
-   ```
-
-3. Install NVIDIA Riva client:
-   ```bash
-   pip install nvidia-riva-client
-   ```
-
-Note: The NVIDIA Riva client is used for speech recognition capabilities. Make sure you have the necessary NVIDIA API keys configured in your environment.
 
 ## Usage
 
