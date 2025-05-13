@@ -17,6 +17,82 @@
 
 # Mercury Interface
 
+A web-based interface for interacting with various AI models and the Mercury Agent. The interface supports text and voice input, and can connect to different AI models including the Mercury Agent for advanced workflows.
+
+## Features
+
+- Chat interface with support for multiple AI models
+- Voice input using microphone
+- Integration with Mercury Agent for:
+  - Research workflows (Wikipedia-based information retrieval)
+  - Retrieval workflows (local document search)
+  - General chat capabilities
+- Real-time response streaming
+- Markdown formatting support
+
+## Setup
+
+1. Install Node.js dependencies:
+   ```bash
+   npm install
+   ```
+
+2. Set up environment variables:
+   ```bash
+   export NVIDIA_API_KEY="your-nvidia-api-key"
+   export OPENAI_API_KEY="your-openai-api-key"  # Optional, for OpenAI models
+   ```
+
+3. Start the server:
+   ```bash
+   node server.js
+   ```
+
+4. Open your browser and navigate to the displayed URL (typically http://localhost:5000)
+
+## Mercury Agent Integration
+
+The interface can connect to the Mercury Agent for advanced workflows:
+
+### Research Workflow
+- Uses Wikipedia to search and summarize information
+- Returns formatted responses with source attribution
+- Handles XML-like document format in responses
+
+### Retrieval Workflow
+- Searches through local documentation
+- Returns relevant information in a clean format
+- Supports markdown formatting in responses
+
+### Response Handling
+The interface handles different response formats from the Mercury Agent:
+- Standard format: `Workflow Result: ["content"]` or `Workflow Result: ['content']`
+- Research format: `Workflow Result: ['<Document>content</Document>']`
+- Handles escaped characters and formatting in responses
+
+## Usage
+
+1. Select a model from the dropdown:
+   - Mercury Agent (for research and retrieval)
+   - OpenAI models (if configured)
+   - NVIDIA models (if configured)
+
+2. Enter your message or use voice input
+
+3. View the response in the chat interface
+
+## Development
+
+The interface is built with:
+- Express.js for the backend
+- Vanilla JavaScript for the frontend
+- WebSocket for real-time communication
+- NVIDIA Riva for speech recognition
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the LICENSE file for details.
+
 ## Disclaimer
 
 This playground is getting shared before its intended time and was written mostly in a hurry through generous use of AI tools. Therefore apologies in advance for poor documentation or nasty code practices. Creating production-level code is not the intent here.
@@ -103,7 +179,7 @@ There are some "dead LLM options" such as using GPT-4o, Claude and Llama 3.2 - T
 
 Similarly, there are two icons (one for intended RAG and one for image upload) next to the microphone option - THOSE DO NOT WORK EITHER (YET).
 
-## Usage
+## Usage - Launching the interface page
 
 Quite simple - after *node* tool is there, just navigate to the webui/ folder and execute:
 

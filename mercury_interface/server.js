@@ -247,9 +247,11 @@ app.post('/api/chat', async (req, res) => {
         }
 
         // Combine stdout and stderr for processing
+        // Note: Mercury Agent can output responses in either stream
         const combinedOutput = output + error;
 
         // Clean the output by removing ANSI color codes and other control characters
+        // This ensures consistent parsing regardless of terminal formatting
         const cleanOutput = combinedOutput
           .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '') // Remove ANSI color codes
           .replace(/\x1B\]0;/g, '')              // Remove other ANSI escape sequences
@@ -258,18 +260,41 @@ app.post('/api/chat', async (req, res) => {
 
         console.log('Cleaned output:', cleanOutput);
 
-        // Find the Workflow Result section
-        const workflowResultMatch = cleanOutput.match(/Workflow Result:\s*\["(.*?)"\]/s);
+        // Parse Mercury Agent responses
+        // The agent can return responses in two formats:
+        // 1. Standard format: Workflow Result: ["content"] or Workflow Result: ['content']
+        // 2. Research tool format: Workflow Result: ['<Document>content</Document>']
+        
+        // First try to find the standard Workflow Result format
+        // The pattern matches both single and double quotes: ['content'] or ["content"]
+        // Also handles escaped quotes within the content
+        const workflowResultMatch = cleanOutput.match(/Workflow Result:\s*\[['"](.*?)['"]\]/s);
         if (workflowResultMatch && workflowResultMatch[1]) {
           const cleanContent = workflowResultMatch[1]
             .replace(/\\n/g, '\n')  // Replace escaped newlines with actual newlines
+            .replace(/\\'/g, "'")   // Replace escaped single quotes
+            .replace(/\\"/g, '"')   // Replace escaped double quotes
             .trim();                // Remove extra whitespace
           
           console.log('Extracted content:', cleanContent);
           return res.json({ text: cleanContent });
         }
 
-        // If we couldn't find the expected format, return an error
+        // If that fails, try to find the Research tool's document format
+        // This format includes XML-like document tags and is used for Wikipedia research
+        const researchResultMatch = cleanOutput.match(/Workflow Result:\s*\['<Document[^>]*>\\n(.*?)\\n<\/Document>'\]/s);
+        if (researchResultMatch && researchResultMatch[1]) {
+          const cleanContent = researchResultMatch[1]
+            .replace(/\\n/g, '\n')  // Replace escaped newlines with actual newlines
+            .replace(/\\'/g, "'")   // Replace escaped single quotes
+            .replace(/\\"/g, '"')   // Replace escaped double quotes
+            .trim();                // Remove extra whitespace
+          
+          console.log('Extracted content from Research tool:', cleanContent);
+          return res.json({ text: cleanContent });
+        }
+
+        // If we couldn't find either format, return an error
         console.error('Could not find Workflow Result with expected format');
         return res.status(500).json({ error: 'Could not parse Mercury Agent response' });
       });
