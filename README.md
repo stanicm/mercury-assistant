@@ -51,7 +51,7 @@ When used together, Mercury Interface provides a user-friendly way to access all
 
 ### Mercury Interface Requirements
 - Node.js 20.x or higher
-- Sox for audio recording
+- Sox for audio recording (only needed if the user intends to use the ASR capabilities)
 - NVIDIA Riva client for speech recognition
 
 ## Installation
