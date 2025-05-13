@@ -44,8 +44,8 @@ When used together, Mercury Interface provides a user-friendly way to access all
 - Node.js 20.x or higher (for Mercury Interface)
 
   #### Ubuntu/Debian
-  ```bash
-  # 1. Update your package list:
+   ```bash
+   # 1. Update your package list:
    sudo apt update
 
    # 2. Install Node.js and npm using NodeSource:
@@ -56,11 +56,14 @@ When used together, Mercury Interface provides a user-friendly way to access all
    node --version
    npm --version
    ```
-  
+   
   #### macOS (using Homebrew)
+  ```bash
   brew install node@20
-
+  ```
+  
   #### Windows - NOT TESTED
+  ```bash
   #### Download and install from https://nodejs.org/
   ```
   
