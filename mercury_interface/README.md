@@ -40,56 +40,14 @@ Mercury Interface is a web-based frontend that provides a user-friendly way to i
 
 ## Prerequisites
 
-- Node.js 20.x or higher
-- Sox for audio recording
-- NVIDIA API Key
-- OpenAI API Key (optional, for OpenAI models)
+Please refer to the main [README.md](../README.md) for complete installation instructions and prerequisites.
 
-## Installation
 
-### 1. Install Node.js Dependencies
-```bash
-npm install
-```
-
-### 2. Install Audio Dependencies
-
-#### On Ubuntu:
-```bash
-# Install Sox
-sudo apt-get install sox
-
-# Install PortAudio
-sudo apt-get install portaudio19-dev
-
-# Install PyAudio
-pip install pyaudio
-
-# Install NVIDIA Riva client
-pip install nvidia-riva-client
-```
-
-#### On macOS:
-```bash
-# Install Sox
-brew install sox
-
-# Install PortAudio
-brew install portaudio
-
-# Install PyAudio
-pip install pyaudio
-
-# Install NVIDIA Riva client
-pip install nvidia-riva-client
-```
-
-### 3. Configure Environment Variables
+### Configure Environment Variables
 ```bash
 export NVIDIA_API_KEY="your-nvidia-api-key"
 export OPENAI_API_KEY="your-openai-api-key"  # Optional
 ```
-
 ## Usage
 
 ### Standalone Usage
