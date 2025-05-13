@@ -1,64 +1,112 @@
 # Mercury AI Assistant
 
-Mercury is an AI assistant built using the AIQ Toolkit that combines multiple frameworks (LangChain, LlamaIndex, and Haystack) to provide a versatile conversational experience. It features:
+Mercury is an AI assistant built using the NVIDIA AIQ Toolkit, NVIDIA RAG Blueprint and running NVIDIA NIM-deployed models that combines multiple frameworks (LangChain, LlamaIndex, and Haystack) to provide a versatile conversational experience. It consists of two main components that can be used independently or together:
 
-- Wikipedia-based research capabilities
-- Chit-chat functionality
-- Document retrieval and RAG (Retrieval-Augmented Generation)
+1. **Mercury Agent**: A powerful backend system that provides:
+   - Wikipedia-based research capabilities
+   - Document retrieval and RAG (Retrieval-Augmented Generation)
+   - Chit-chat functionality
+   - Multi-agent architecture for intelligent task routing
+
+2. **Mercury Interface**: A web-based frontend that provides:
+   - User-friendly chat interface
+   - Voice input capabilities
+   - Support for multiple AI models
+   - Real-time response streaming
+
+## Component Usage
+
+### Using Mercury Agent Alone
+The Mercury Agent can be used independently as a command-line tool for:
+- Research queries using Wikipedia
+- Document retrieval from local files
+- General conversation
+- Integration into other applications
+
+### Using Mercury Interface Alone
+The Mercury Interface can be used independently with:
+- NVIDIA models
+- Any other compatible LLM service
+
+### Using Both Together
+When used together, Mercury Interface provides a user-friendly way to access all Mercury Agent capabilities:
+- Seamless integration of research and retrieval workflows
+- Voice input support
+- Real-time response streaming
+- Markdown formatting support
 
 ## Prerequisites
 
+### Common Requirements
 - Python 3.10 or higher
-- AIQ Toolkit (installed from NVIDIA's package repository)
 - NVIDIA API Key for LLM access
 
-## Dependencies
+### Mercury Agent Requirements
+- AIQ Toolkit (installed from NVIDIA's package repository)
+- LangChain, LlamaIndex, and Haystack packages
 
-The project requires the following main packages:
-- `aiq-toolkit`: NVIDIA's AI Query Toolkit
-- `langchain`: For LLM interactions and chains
-- `llama-index`: For document indexing and retrieval
-- `haystack`: For question-answering capabilities
-- `wikipedia`: For Wikipedia search functionality
+### Mercury Interface Requirements
+- Node.js 20.x or higher
+- Sox for audio recording
+- NVIDIA Riva client for speech recognition
 
-## Features
+## Installation
 
-- **Research Mode**: Uses Wikipedia to search and summarize information about various topics
-- **Retrieval Mode**: Accesses and retrieves information from local documentation
-- **General Chat Mode**: Handles casual conversation and general queries
-
-## Setup
-
-1. Clone the repository
-2. Install dependencies:
+1. Clone the repository:
    ```bash
+   git clone https://github.com/your-username/mercury-assistant.git
+   cd mercury-assistant
+   ```
+
+2. Install Mercury Agent:
+   ```bash
+   cd mercury_agent
    pip install -e .
    ```
 
-3. Configure the environment:
-   - Set up NVIDIA API key:
-     ```bash
-     export NVIDIA_API_KEY="your-api-key"
-     ```
-   - Adjust the configuration in `mercury/configs/config.yml`
+3. Install Mercury Interface:
+   ```bash
+   cd ../mercury_interface
+   npm install
+   ```
+
+4. Configure environment variables:
+   ```bash
+   export NVIDIA_API_KEY="your-api-key"
+   export OPENAI_API_KEY="your-openai-api-key"  # Optional, for OpenAI models
+   ```
 
 ## Usage
 
-Run the assistant with:
+### Using Mercury Agent
 ```bash
-cd mercury
+cd mercury_agent
 aiq run --config_file=configs/config.yml --input "your question here"
 ```
 
+### Using Mercury Interface
+```bash
+cd mercury_interface
+node server.js
+```
+Then open your browser to http://localhost:5000
+
+### Using Both Together
+1. Start the Mercury Interface as above
+2. Select "Mercury Agent" from the model dropdown
+3. Use the interface to interact with all Mercury Agent capabilities
+
 ## Project Structure
 
-- `mercury/`: Main project directory
+- `mercury_agent/`: Backend agent system
   - `configs/`: Configuration files
-  - `src/`: Source code
-    - `register.py`: Workflow registration and routing logic
-    - `wikipedia_search_tool.py`: Wikipedia search implementation
-    - `haystack_agent.py`: Chat functionality
-    - Other implementation files
+  - `src/`: Source code for agent workflows
+  - `data/`: Local documentation for RAG
+
+- `mercury_interface/`: Web-based frontend
+  - `public/`: Frontend assets
+  - `server.js`: Backend server
+  - `riva_python_client/`: Speech recognition client
 
 ## License
 
