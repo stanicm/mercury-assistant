@@ -43,7 +43,7 @@ When used together, Mercury Interface provides a user-friendly way to access all
 - Python 3.10 or higher
 - Node.js 20.x or higher (for Mercury Interface)
 
-  # Ubuntu/Debian
+  #### Ubuntu/Debian
   ```bash
   # 1. Update your package list:
    sudo apt update
@@ -57,11 +57,11 @@ When used together, Mercury Interface provides a user-friendly way to access all
    npm --version
    ```
   
-  # macOS (using Homebrew)
+  #### macOS (using Homebrew)
   brew install node@20
 
-  # Windows - NOT TESTED
-  # Download and install from https://nodejs.org/
+  #### Windows - NOT TESTED
+  #### Download and install from https://nodejs.org/
   ```
   
 - NVIDIA API Key for LLM access
@@ -100,17 +100,17 @@ For speech recognition functionality, you'll need to install the NVIDIA Riva cli
 - Sox for audio recording (required for voice input in Mercury Interface) - required for the microphone recording feature. The server uses Sox to record audio in the correct format (16-bit WAV, mono channel, 16kHz sample rate) for the Parakeet ASR service.
 
   
-  # Ubuntu/Debian
+  #### Ubuntu/Debian
   ```bash
   sudo apt-get install sox
   ```
 
-  # macOS (using Homebrew)
+  #### macOS (using Homebrew)
   ```bash
   brew install sox
   ```
 
-  # Windows - NOT TESTED
+  #### Windows - NOT TESTED
   ```bash
   # Download and install from https://sourceforge.net/projects/sox/
   ```
