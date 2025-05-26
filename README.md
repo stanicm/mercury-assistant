@@ -83,6 +83,11 @@ When used together, Mercury Interface provides a user-friendly way to access all
    pip install langchain llama-index haystack
    ```
 
+3. Mercury Agent specific dependencies:
+   ```bash
+   pip install arxiv~=2.1.3 colorama~=0.4.6 markdown-it-py~=3.0 nvidia-haystack==0.1.2 wikipedia~=1.4.0
+   ```
+
 ### Installing NVIDIA Riva Client, Sox and Prerequisites
 
 For speech recognition functionality, you'll need to install the NVIDIA Riva client and its prerequisites and make sure you have the necessary NVIDIA API keys configured in your environment.:
