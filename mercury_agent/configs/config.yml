@@ -32,24 +32,16 @@ functions:
     timeout: 120                       # Request timeout in seconds
     use_knowledge_base: true           # Enable knowledge base retrieval
 
-  # LangChain research tool configuration
-  langchain_researcher_tool:
+  # Direct Wikipedia search tool configuration
+  wikipedia_search:
     _type: langchain_researcher_tool
-    web_tool: internet_search          # Use internet search as a tool
-    llm_name: nim_llm                  # LLM to use for topic extraction
+    llm_name: nim_llm
 
   # Haystack chitchat agent configuration
   haystack_chitchat_agent:
     _type: haystack_chitchat_agent
     llm_name: nvdev/meta/llama-3.3-70b-instruct
-    #llm_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct  # Model for general conversation
     timeout: 90                        # Request timeout in seconds
-
-  # Wikipedia search tool configuration
-  wikipedia_search:
-    _type: wiki_search
-    llm_name: nim_llm                  # LLM to use for topic extraction
-    max_results: 3                     # Maximum number of results to return
 
 # Language Model configurations
 llms:
