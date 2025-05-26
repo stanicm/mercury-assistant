@@ -35,6 +35,7 @@ The workflow follows a supervisor-worker pattern where:
 # limitations under the License.
 
 import logging
+from colorama import Fore, Style, init
 
 from aiq.builder.builder import Builder
 from aiq.builder.framework_enum import LLMFrameworkEnum
@@ -48,6 +49,9 @@ from . import haystack_agent  # noqa: F401, pylint: disable=unused-import
 from . import langchain_research_tool  # noqa: F401, pylint: disable=unused-import
 from . import nvbp_rag_tool  # noqa: F401, pylint: disable=unused-import
 
+# Initialize colorama
+init()
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -57,6 +61,23 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
+
+# Add a custom formatter for color-coded output
+class ColoredFormatter(logging.Formatter):
+    def format(self, record):
+        if hasattr(record, 'agent_type'):
+            if record.agent_type == 'research':
+                record.msg = f"{Fore.BLUE}[RESEARCH AGENT]{Style.RESET_ALL} {record.msg}"
+            elif record.agent_type == 'retrieve':
+                record.msg = f"{Fore.GREEN}[RAG AGENT]{Style.RESET_ALL} {record.msg}"
+            elif record.agent_type == 'general':
+                record.msg = f"{Fore.YELLOW}[CHITCHAT AGENT]{Style.RESET_ALL} {record.msg}"
+        return super().format(record)
+
+# Apply the colored formatter
+handler = logging.StreamHandler()
+handler.setFormatter(ColoredFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(handler)
 
 
 class MercuryAgentWorkflowConfig(FunctionBaseConfig, name="mercury_agent"):
@@ -216,46 +237,119 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
         logger.debug("Worker processing query with agent: %s", worker_choice)
         
         if "retrieve" in worker_choice.lower():
+            logger.info("Processing with RAG agent", extra={'agent_type': 'retrieve'})
             out = (await rag_tool.ainvoke(query))
             output = out
             logger.debug("RAG tool response received")
         elif "general" in worker_choice.lower():
+            logger.info("Processing with Chitchat agent", extra={'agent_type': 'general'})
             output = (await chitchat_agent.ainvoke(query))
             logger.debug("Chitchat response received")
         elif 'research' in worker_choice.lower():
-            # Get the Wikipedia page content and URL
-            wiki_results = await research_tool.ainvoke(query)
-            
-            # Create a prompt for summarizing the Wikipedia results
-            summary_prompt = PromptTemplate.from_template(
-                """You are a helpful assistant that summarizes information from Wikipedia articles.
-                Please provide a clear and concise 500-word summary of the following Wikipedia content, focusing on answering the user's question: {question}
+            logger.info("Processing with Research agent", extra={'agent_type': 'research'})
+            try:
+                # Get the Wikipedia page content and URL
+                wiki_results = await research_tool.ainvoke(query)
+                
+                # Check if the query is asking for more details
+                detail_prompt = PromptTemplate.from_template("""
+                Check if the query contains any of these expressions asking for more information:
+                - "more details"
+                - "elaborate"
+                - "tell me more"
+                - "explain further"
+                - "more information"
 
-                Wikipedia content:
-                {content}
+                Query: {query}
+                Return ONLY 'yes' if any of these expressions are present, otherwise 'no'.""")
+                
+                try:
+                    detail_check = await llm.ainvoke(detail_prompt.format(query=query))
+                    # Extract the text content from the AIMessage
+                    detail_response = str(detail_check).strip().lower()
+                    is_detail_request = 'yes' in detail_response
+                    logger.debug("Detail detection response: %s", detail_response)
+                except Exception as e:
+                    logger.warning("Error in detail detection, defaulting to standard summary: %s", e)
+                    is_detail_request = False
+                
+                # Create a prompt for summarizing the Wikipedia results
+                summary_prompt = PromptTemplate.from_template(
+                    """You are a helpful assistant that summarizes information from Wikipedia articles.
+                    You MUST provide a summary of {length} words, but make sure you complete the last sentence.
+                    Focus on answering the user's question: {question}
 
-                Please provide a well-structured summary that:
-                1. Directly answers the user's question
-                2. Uses complete sentences
-                3. Ends with a proper concluding sentence
-                4. Maintains a natural flow
-                5. Includes the most relevant information
+                    Wikipedia content:
+                    {content}
 
-                If the Wikipedia content is not relevant to the question, please indicate that we should try another search.
+                    Please provide a well-structured summary that:
+                    1. Directly answers the user's question
+                    2. Uses complete sentences
+                    3. Ends with a proper concluding sentence
+                    4. Maintains a natural flow
+                    5. Includes the most relevant information
+                    {detail_instructions}
 
-                Summary:"""
-            )
-            
-            # Create the summarization chain
-            summary_chain = summary_prompt | llm | StrOutputParser()
-            
-            # Get the summary
-            output = await summary_chain.ainvoke({
-                "question": query,
-                "content": wiki_results
-            })
-            
-            logger.debug("Research response received and summarized")
+                    Remember: Your summary should be approximately {length} words long, but make sure you complete the last sentence.
+                    If the Wikipedia content is not relevant to the question, please indicate that we should try another search.
+
+                    Summary:"""
+                )
+                
+                # Create the summarization chain with word count verification
+                summary_chain = summary_prompt | llm | StrOutputParser()
+                
+                # Get the summary with appropriate length and detail level
+                output = await summary_chain.ainvoke({
+                    "question": query,
+                    "content": wiki_results,
+                    "length": "1000" if is_detail_request else "500",
+                    "detail_instructions": """
+                    Since this is a request for more details, please:
+                    1. Include more specific examples and facts
+                    2. Provide deeper context and background information
+                    3. Explain related concepts and their connections
+                    4. Discuss implications and significance
+                    5. Cover multiple aspects of the topic
+                    6. Aim for approximately 1000 words while maintaining quality
+                    """ if is_detail_request else ""
+                })
+                
+                # Verify and adjust word count if needed
+                word_count = len(output.split())
+                target_count = 1000 if is_detail_request else 500
+                logger.debug("Initial summary word count: %d (target: %d)", word_count, target_count)
+                
+                if word_count < target_count * 0.7:  # If we're more than 30% short
+                    logger.warning("Summary is too short (%d words), regenerating with stronger length requirement", word_count)
+                    # Try again with stronger emphasis on length
+                    output = await summary_chain.ainvoke({
+                        "question": query,
+                        "content": wiki_results,
+                        "length": str(target_count),
+                        "detail_instructions": f"""
+                        CRITICAL: Your previous response was too short. Please provide a more detailed summary.
+                        Since this is a request for more details, please:
+                        1. Include more specific examples and facts
+                        2. Provide deeper context and background information
+                        3. Explain related concepts and their connections
+                        4. Discuss implications and significance
+                        5. Cover multiple aspects of the topic
+                        6. Aim for approximately {target_count} words while maintaining quality
+                        """ if is_detail_request else f"CRITICAL: Your previous response was too short. Please provide a more detailed summary of approximately {target_count} words."
+                    })
+                
+                # Final verification of word count
+                final_word_count = len(output.split())
+                logger.debug("Final summary word count: %d (target: %d)", final_word_count, target_count)
+                
+                if final_word_count < target_count * 0.7:
+                    logger.warning("Summary is still shorter than desired (%d words), but proceeding with response", final_word_count)
+                    # Instead of returning an error, we'll proceed with the shorter response
+                    output = f"{output}\n\nNote: This summary is shorter than requested but contains the most relevant information available."
+            except Exception as e:
+                logger.error("Error in research processing: %s", e)
+                output = f"Error processing research request: {str(e)}"
         else:
             output = ("Apologies, I am not sure what to say, I can answer general questions retrieve info this "
                       "mercury_agent workflow and answer light coding questions, but nothing more.")
