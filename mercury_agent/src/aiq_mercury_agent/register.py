@@ -48,7 +48,15 @@ from . import haystack_agent  # noqa: F401, pylint: disable=unused-import
 from . import langchain_research_tool  # noqa: F401, pylint: disable=unused-import
 from . import nvbp_rag_tool  # noqa: F401, pylint: disable=unused-import
 
+# Configure logging
 logger = logging.getLogger(__name__)
+
+# Set up logging format
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 
 class MercuryAgentWorkflowConfig(FunctionBaseConfig, name="mercury_agent"):
@@ -164,7 +172,7 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
                 "session_id": "unused"
             }},
         ))
-        logger.info("%s========== inside **supervisor node**  current status = \n %s", Fore.BLUE, state)
+        logger.debug("Supervisor classified query as: %s", chosen_agent)
 
         return {'input': query, "chosen_worker_agent": chosen_agent, "chat_history": chat_hist}
 
@@ -179,14 +187,15 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
             String indicating the next node in the workflow
         """
         status = list(state.keys())
-        logger.info("========== inside **router node**  current status = \n %s, %s", Fore.CYAN, status)
+        logger.debug("Router processing state: %s", status)
+        
         if 'final_output' in status:
             route_to = "end"
         elif 'chosen_worker_agent' not in status:
-            logger.info(" ############# router to --> supervisor %s", Fore.RESET)
+            logger.debug("Routing to supervisor")
             route_to = "supevisor"
         elif 'chosen_worker_agent' in status:
-            logger.info(" ############# router to --> workers %s", Fore.RESET)
+            logger.debug("Routing to workers")
             route_to = "workers"
         else:
             route_to = "end"
@@ -204,21 +213,53 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
         """
         query = state["input"]
         worker_choice = state["chosen_worker_agent"]
-        logger.info("========== inside **workers node**  current status = \n %s, %s", Fore.YELLOW, state)
+        logger.debug("Worker processing query with agent: %s", worker_choice)
+        
         if "retrieve" in worker_choice.lower():
             out = (await rag_tool.ainvoke(query))
             output = out
-            logger.info("**using rag_tool via llama_index_rag_agent >>> output:  \n %s, %s", output, Fore.RESET)
+            logger.debug("RAG tool response received")
         elif "general" in worker_choice.lower():
             output = (await chitchat_agent.ainvoke(query))
-            logger.info("**using general chitchat chain >>> output:  \n %s, %s", output, Fore.RESET)
+            logger.debug("Chitchat response received")
         elif 'research' in worker_choice.lower():
-            inputs = {"question": query}
-            output = (await research_tool.ainvoke(inputs))
+            # Get the Wikipedia page content and URL
+            wiki_results = await research_tool.ainvoke(query)
+            
+            # Create a prompt for summarizing the Wikipedia results
+            summary_prompt = PromptTemplate.from_template(
+                """You are a helpful assistant that summarizes information from Wikipedia articles.
+                Please provide a clear and concise 500-word summary of the following Wikipedia content, focusing on answering the user's question: {question}
+
+                Wikipedia content:
+                {content}
+
+                Please provide a well-structured summary that:
+                1. Directly answers the user's question
+                2. Uses complete sentences
+                3. Ends with a proper concluding sentence
+                4. Maintains a natural flow
+                5. Includes the most relevant information
+
+                If the Wikipedia content is not relevant to the question, please indicate that we should try another search.
+
+                Summary:"""
+            )
+            
+            # Create the summarization chain
+            summary_chain = summary_prompt | llm | StrOutputParser()
+            
+            # Get the summary
+            output = await summary_chain.ainvoke({
+                "question": query,
+                "content": wiki_results
+            })
+            
+            logger.debug("Research response received and summarized")
         else:
             output = ("Apologies, I am not sure what to say, I can answer general questions retrieve info this "
                       "mercury_agent workflow and answer light coding questions, but nothing more.")
-            logger.info("**!!! not suppose to happen, try to debug this >>> output:  \n %s, %s", output, Fore.RESET)
+            logger.warning("Unknown worker choice: %s", worker_choice)
 
         return {'input': query, "chosen_worker_agent": worker_choice, "chat_history": chat_hist, "final_output": output}
 
@@ -249,13 +290,13 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
             The system's response to the query
         """
         try:
-            logger.debug("Starting agent execution")
+            logger.debug("Processing input message")
             out = (await app.ainvoke({"input": input_message, "chat_history": chat_hist}))
             output = out["final_output"]
-            logger.info("final_output : %s ", output)
+            logger.info("Response generated successfully")
             return output
         finally:
-            logger.debug("Finished agent execution")
+            logger.debug("Finished processing message")
 
     try:
         yield _response_fn

@@ -77,14 +77,25 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
             logger.error("Error extracting topic: %s", e)
             return query
 
-    async def wikipedia_search(query: str) -> str:
-        """Search Wikipedia and return the URL of the first matching page."""
+    async def wikipedia_search(query: str) -> tuple[str, str]:
+        """Search Wikipedia and return the URL and content of the first matching page."""
         try:
             # Try to get the page directly
             page = await asyncio.get_event_loop().run_in_executor(
                 None, partial(wikipedia.page, query, auto_suggest=False)
             )
-            return page.url
+            # Get the summary and content, ensuring we have complete sentences
+            summary = page.summary
+            content = page.content
+            
+            # If the summary ends mid-sentence, try to complete it
+            if not any(summary.endswith(p) for p in ['.', '!', '?']):
+                # Find the next sentence boundary in the content
+                next_period = content.find('.', len(summary))
+                if next_period != -1:
+                    summary = content[:next_period + 1]
+            
+            return page.url, content
             
         except (wikipedia.exceptions.PageError, wikipedia.exceptions.DisambiguationError):
             # If direct page fails, try search
@@ -96,22 +107,40 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
                     page = await asyncio.get_event_loop().run_in_executor(
                         None, partial(wikipedia.page, search_results[0], auto_suggest=False)
                     )
-                    return page.url
+                    # Get the summary and content, ensuring we have complete sentences
+                    summary = page.summary
+                    content = page.content
+                    
+                    # If the summary ends mid-sentence, try to complete it
+                    if not any(summary.endswith(p) for p in ['.', '!', '?']):
+                        # Find the next sentence boundary in the content
+                        next_period = content.find('.', len(summary))
+                        if next_period != -1:
+                            summary = content[:next_period + 1]
+                    
+                    return page.url, content
             except Exception:
                 pass
                 
-        return f"Could not find a Wikipedia page for: {query}"
+        return f"Could not find a Wikipedia page for: {query}", ""
 
     async def _arun(inputs: str) -> str:
-        """Process user input and return a Wikipedia page URL."""
+        """Process user input and return a Wikipedia page URL and content."""
         try:
             # Extract the main topic first
             topic = await extract_topic(inputs)
             logger.debug("Extracted topic: %s", topic)
             
             # Search Wikipedia with the extracted topic
-            return await wikipedia_search(topic)
+            url, content = await wikipedia_search(topic)
+            
+            if content:
+                # Format the content to ensure complete sentences
+                formatted_content = content.replace('\n', ' ').strip()
+                return f"{formatted_content}\n\nSource: {url}"
+            return url
+            
         except Exception as e:
             return f"Error processing query: {str(e)}"
 
-    yield FunctionInfo.from_fn(_arun, description="find a Wikipedia page for a given query")
+    yield FunctionInfo.from_fn(_arun, description="find a Wikipedia page and generate a summary for a given query")
