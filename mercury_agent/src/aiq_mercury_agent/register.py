@@ -79,6 +79,7 @@ handler = logging.StreamHandler()
 handler.setFormatter(ColoredFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(handler)
 
+logger.propagate = False  # Prevent propagation to the root logger
 
 class MercuryAgentWorkflowConfig(FunctionBaseConfig, name="mercury_agent"):
     """
@@ -187,13 +188,19 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
             Updated state with chosen agent and chat history
         """
         query = state["input"]
-        chosen_agent = (await supervisor_chain_with_message_history.ainvoke(
-            {"input": query},
-            {"configurable": {
-                "session_id": "unused"
-            }},
-        ))
-        logger.debug("Supervisor classified query as: %s", chosen_agent)
+        try:
+            chosen_agent = (await supervisor_chain_with_message_history.ainvoke(
+                {"input": query},
+                {"configurable": {
+                    "session_id": "unused"
+                }},
+            ))
+            logger.debug("Supervisor classified query as: %s", chosen_agent)
+        except Exception as e:
+            logger.error("Error in supervisor classification: %s", str(e))
+            # Default to research agent if classification fails
+            chosen_agent = "research"
+            logger.info("Defaulting to research agent due to classification error")
 
         return {'input': query, "chosen_worker_agent": chosen_agent, "chat_history": chat_hist}
 
@@ -251,102 +258,93 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
                 # Get the Wikipedia page content and URL
                 wiki_results = await research_tool.ainvoke(query)
                 
-                # Check if the query is asking for more details
-                detail_prompt = PromptTemplate.from_template("""
-                Check if the query contains any of these expressions asking for more information:
-                - "more details"
-                - "elaborate"
-                - "tell me more"
-                - "explain further"
-                - "more information"
+                # Create a prompt for summarizing Wikipedia results
+                summary_prompt = PromptTemplate.from_template("""
+                You are a helpful AI assistant. Your task is to summarize the following Wikipedia content in response to the user's query.
+                {detail_instructions}
+                Focus on providing a comprehensive and informative summary that directly addresses the user's query.
+                Include relevant details, examples, and key points from the content.
+                Maintain a natural flow and ensure all information is accurate and well-organized.
+                Make sure to complete all sentences and paragraphs - do not cut off mid-sentence.
+                Do not include any meta-commentary or notes about the summary itself.
+                Do not mention the word count in your response.
+                Do not add any disclaimers or notes about the content.
+                Simply provide the summary.
 
-                Query: {query}
-                Return ONLY 'yes' if any of these expressions are present, otherwise 'no'.""")
-                
+                User Query: {query}
+
+                Wikipedia Content:
+                {content}
+
+                Summary:""")
+
+                # Create a chain for summarizing the content
+                summary_chain = summary_prompt | llm
+
+                # Process the research results
                 try:
-                    detail_check = await llm.ainvoke(detail_prompt.format(query=query))
-                    # Extract the text content from the AIMessage
-                    detail_response = str(detail_check).strip().lower()
-                    is_detail_request = 'yes' in detail_response
-                    logger.debug("Detail detection response: %s", detail_response)
-                except Exception as e:
-                    logger.warning("Error in detail detection, defaulting to standard summary: %s", e)
-                    is_detail_request = False
-                
-                # Create a prompt for summarizing the Wikipedia results
-                summary_prompt = PromptTemplate.from_template(
-                    """You are a helpful assistant that summarizes information from Wikipedia articles.
-                    You MUST provide a summary of {length} words, but make sure you complete the last sentence.
-                    Focus on answering the user's question: {question}
+                    # First, check if the user is asking for more details
+                    detail_prompt = PromptTemplate.from_template("""
+                    Analyze if the following query is asking for more details or elaboration.
+                    Return ONLY 'yes' or 'no'.
 
-                    Wikipedia content:
-                    {content}
+                    Query: {query}
+                    Response:""")
 
-                    Please provide a well-structured summary that:
-                    1. Directly answers the user's question
-                    2. Uses complete sentences
-                    3. Ends with a proper concluding sentence
-                    4. Maintains a natural flow
-                    5. Includes the most relevant information
-                    {detail_instructions}
+                    detail_chain = detail_prompt | llm
 
-                    Remember: Your summary should be approximately {length} words long, but make sure you complete the last sentence.
-                    If the Wikipedia content is not relevant to the question, please indicate that we should try another search.
+                    try:
+                        detail_response = await detail_chain.ainvoke({"query": query})
+                        # Extract text content from AIMessage if needed
+                        detail_text = str(detail_response.content) if hasattr(detail_response, 'content') else str(detail_response)
+                        is_detail_request = detail_text.lower().strip() == 'yes'
+                        logger.debug("Detail detection response: %s", detail_text)
+                    except Exception as e:
+                        logger.warning("Error in detail detection: %s", str(e))
+                        # Default to detailed response if we can't determine
+                        is_detail_request = True
 
-                    Summary:"""
-                )
-                
-                # Create the summarization chain with word count verification
-                summary_chain = summary_prompt | llm | StrOutputParser()
-                
-                # Get the summary with appropriate length and detail level
-                output = await summary_chain.ainvoke({
-                    "question": query,
-                    "content": wiki_results,
-                    "length": "1000" if is_detail_request else "500",
-                    "detail_instructions": """
-                    Since this is a request for more details, please:
-                    1. Include more specific examples and facts
-                    2. Provide deeper context and background information
-                    3. Explain related concepts and their connections
-                    4. Discuss implications and significance
-                    5. Cover multiple aspects of the topic
-                    6. Aim for approximately 1000 words while maintaining quality
-                    """ if is_detail_request else ""
-                })
-                
-                # Verify and adjust word count if needed
-                word_count = len(output.split())
-                target_count = 1000 if is_detail_request else 500
-                logger.debug("Initial summary word count: %d (target: %d)", word_count, target_count)
-                
-                if word_count < target_count * 0.7:  # If we're more than 30% short
-                    logger.warning("Summary is too short (%d words), regenerating with stronger length requirement", word_count)
-                    # Try again with stronger emphasis on length
-                    output = await summary_chain.ainvoke({
-                        "question": query,
+                    # Determine the length and instructions based on whether it's a detail request
+                    if is_detail_request:
+                        target_length = 1000
+                        detail_instructions = "The summary MUST be EXACTLY 1000 words long - this is a strict requirement. Provide a comprehensive and detailed summary."
+                    else:
+                        target_length = 250
+                        detail_instructions = "The summary MUST be EXACTLY 300 words long - this is a strict requirement. Provide a concise summary focusing on key points."
+
+                    logger.info("Target summary length: %d words", target_length)
+
+                    # Generate the summary with the appropriate length and instructions
+                    summary = await summary_chain.ainvoke({
+                        "query": query,
                         "content": wiki_results,
-                        "length": str(target_count),
-                        "detail_instructions": f"""
-                        CRITICAL: Your previous response was too short. Please provide a more detailed summary.
-                        Since this is a request for more details, please:
-                        1. Include more specific examples and facts
-                        2. Provide deeper context and background information
-                        3. Explain related concepts and their connections
-                        4. Discuss implications and significance
-                        5. Cover multiple aspects of the topic
-                        6. Aim for approximately {target_count} words while maintaining quality
-                        """ if is_detail_request else f"CRITICAL: Your previous response was too short. Please provide a more detailed summary of approximately {target_count} words."
+                        "length": target_length,
+                        "detail_instructions": detail_instructions
                     })
-                
-                # Final verification of word count
-                final_word_count = len(output.split())
-                logger.debug("Final summary word count: %d (target: %d)", final_word_count, target_count)
-                
-                if final_word_count < target_count * 0.7:
-                    logger.warning("Summary is still shorter than desired (%d words), but proceeding with response", final_word_count)
-                    # Instead of returning an error, we'll proceed with the shorter response
-                    output = f"{output}\n\nNote: This summary is shorter than requested but contains the most relevant information available."
+
+                    # Extract text content from AIMessage if needed
+                    summary_text = str(summary.content) if hasattr(summary, 'content') else str(summary)
+
+                    # Log the word count for monitoring
+                    word_count = len(summary_text.split())
+                    logger.info("Generated summary length: %d words", word_count)
+
+                    # Return a dictionary with the required state fields
+                    return {
+                        'input': query,
+                        'chosen_worker_agent': worker_choice,
+                        'chat_history': chat_hist,
+                        'final_output': summary_text
+                    }
+
+                except Exception as e:
+                    logger.error("Error processing research results: %s", str(e))
+                    return {
+                        'input': query,
+                        'chosen_worker_agent': worker_choice,
+                        'chat_history': chat_hist,
+                        'final_output': f"Error: {str(e)}"
+                    }
             except Exception as e:
                 logger.error("Error in research processing: %s", e)
                 output = f"Error processing research request: {str(e)}"
