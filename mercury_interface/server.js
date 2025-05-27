@@ -442,6 +442,166 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
   }
 });
 
+// TTS endpoint - Handles text-to-speech conversion using NVIDIA RIVA Magpie model
+app.post('/api/tts', async (req, res) => {
+    const { text, voice } = req.body;
+    const timestamp = Date.now();
+    const tempFiles = [];
+    
+    try {
+        console.log('=== TTS Request Debug ===');
+        console.log('Raw request body:', req.body);
+        console.log('Text received:', text);
+        console.log('Text length in characters:', text.length);
+        console.log('Text length in words:', text.split(/\s+/).length);
+        console.log('First 100 characters:', text.substring(0, 100));
+        console.log('Last 100 characters:', text.substring(text.length - 100));
+        console.log('=======================');
+        
+        // Split text into chunks of maximum 1500 characters to account for Riva client overhead
+        const MAX_CHUNK_SIZE = 1500;
+        const textChunks = [];
+        let currentChunk = '';
+        
+        // Split by sentences to maintain natural breaks
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        
+        for (const sentence of sentences) {
+            if ((currentChunk + sentence).length <= MAX_CHUNK_SIZE) {
+                currentChunk += sentence;
+            } else {
+                if (currentChunk) {
+                    textChunks.push(currentChunk.trim());
+                }
+                currentChunk = sentence;
+            }
+        }
+        if (currentChunk) {
+            textChunks.push(currentChunk.trim());
+        }
+        
+        console.log(`Split text into ${textChunks.length} chunks`);
+        
+        // Process each chunk and combine the audio
+        for (let i = 0; i < textChunks.length; i++) {
+            const chunk = textChunks[i];
+            console.log(`Processing chunk ${i + 1}/${textChunks.length} (${chunk.length} characters)`);
+            
+            // Create a temporary file path for this chunk
+            const tempFile = `/tmp/tts_${timestamp}_${i}.wav`;
+            tempFiles.push(tempFile);
+            console.log('Temporary file path:', tempFile);
+            
+            // Construct the path to the TTS script
+            const scriptPath = path.join(__dirname, 'riva_python_client/scripts/tts/talk.py');
+            
+            // Spawn the TTS process for this chunk
+            const ttsProcess = spawn('python3', [
+                scriptPath,
+                '--server', '0.0.0.0:50051',
+                '--language-code', 'en-US',
+                '--voice', voice || 'Magpie-Multilingual.ES-US.Diego.Happy',
+                '--text', chunk,
+                '-o', tempFile,
+                '--encoding', 'LINEAR_PCM',
+                '--sample-rate-hz', '16000'
+            ]);
+
+            let errorOutput = '';
+            let stdoutOutput = '';
+
+            // Capture and log standard output from the TTS process
+            ttsProcess.stdout.on('data', (data) => {
+                const output = data.toString();
+                stdoutOutput += output;
+                console.log('TTS stdout:', output);
+            });
+
+            // Capture and log any errors from the TTS process
+            ttsProcess.stderr.on('data', (data) => {
+                const error = data.toString();
+                errorOutput += error;
+                console.error('TTS stderr:', error);
+            });
+
+            // Wait for the TTS process to complete
+            await new Promise((resolve, reject) => {
+                ttsProcess.on('close', (code, signal) => {
+                    console.log(`TTS process closed with code: ${code}, signal: ${signal}`);
+                    if (code !== 0) {
+                        console.error('TTS process failed with error output:', errorOutput);
+                        reject(new Error(errorOutput || 'TTS generation failed'));
+                    } else {
+                        resolve();
+                    }
+                });
+
+                ttsProcess.on('error', (error) => {
+                    console.error('TTS process error:', error);
+                    reject(error);
+                });
+            });
+
+            // Verify the file was created
+            if (!fs.existsSync(tempFile)) {
+                throw new Error('TTS output file was not created');
+            }
+        }
+
+        // Create a new WAV file with the combined audio
+        const outputFile = `/tmp/tts_combined_${timestamp}.wav`;
+        tempFiles.push(outputFile);
+        
+        // Use sox to combine the WAV files
+        const soxProcess = spawn('sox', [
+            ...tempFiles.slice(0, -1), // All files except the output file
+            outputFile
+        ]);
+
+        await new Promise((resolve, reject) => {
+            soxProcess.on('close', (code) => {
+                if (code === 0) {
+                    resolve();
+                } else {
+                    reject(new Error(`Sox process failed with code ${code}`));
+                }
+            });
+        });
+
+        // Read the combined audio file
+        const combinedAudio = fs.readFileSync(outputFile);
+        console.log('Combined audio size:', combinedAudio.length, 'bytes');
+        
+        // Set appropriate headers for audio streaming
+        res.setHeader('Content-Type', 'audio/wav');
+        res.setHeader('Content-Length', combinedAudio.length);
+        
+        // Send the combined audio data to the client
+        res.send(combinedAudio);
+
+    } catch (error) {
+        console.error('Error in TTS endpoint:', error);
+        if (!res.headersSent) {
+            res.status(500).json({ 
+                error: 'Internal server error',
+                details: error.message
+            });
+        }
+    } finally {
+        // Clean up all temporary files
+        tempFiles.forEach(file => {
+            try {
+                if (fs.existsSync(file)) {
+                    fs.unlinkSync(file);
+                    console.log(`Cleaned up temporary file: ${file}`);
+                }
+            } catch (err) {
+                console.error(`Error deleting temporary file ${file}:`, err);
+            }
+        });
+    }
+});
+
 // Create uploads directory if it doesn't exist
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
@@ -465,3 +625,4 @@ function startServer(port) {
 
 // Start the server
 startServer(port);
+

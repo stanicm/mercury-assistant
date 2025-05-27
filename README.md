@@ -195,3 +195,39 @@ Then open your browser to http://localhost:5000
 ## License
 
 This project is licensed under the Apache License 2.0 - see the LICENSE file for details. 
+
+### Optional: Text-to-Speech Setup
+
+Mercury Interface supports text-to-speech capabilities using NVIDIA's Magpie TTS Multilingual model. This is an optional feature that requires additional setup:
+
+1. Set up NVIDIA NGC API key for container registry access:
+   ```bash
+   export NGC_API_KEY="your-ngc-api-key-here"
+   ```
+
+2. Authenticate with NVIDIA Container Registry:
+   ```bash
+   echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+   ```
+
+3. Deploy magpie-tts-multilingual model using Docker:
+   ```bash
+   docker run -it --rm --name=magpie-tts-multilingual \
+       --runtime=nvidia \
+       --gpus '"device=0"' \
+       --shm-size=8GB \
+       -e NGC_API_KEY=$NGC_API_KEY \
+       -e NIM_HTTP_API_PORT=9000 \
+       -e NIM_GRPC_API_PORT=50051 \
+       -p 9000:9000 \
+       -p 50051:50051 \
+       nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+   ```
+
+For more details about the Magpie TTS model, visit: https://build.nvidia.com/nvidia/magpie-tts-multilingual/deploy
+
+**Features:**
+- Toggle between text and audio output
+- Automatic audio playback for AI responses
+- Support for multiple voices
+- High-quality multilingual speech synthesis 

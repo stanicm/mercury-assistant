@@ -48,9 +48,19 @@ The system uses AgentIQ's plugin system and `Builder` object to wrap these tools
 
 Please refer to the main [README.md](../README.md) for complete installation instructions and prerequisites.
 
+### Required Dependencies
+
+- arxiv ~= 2.1.3
+- colorama ~= 0.4.6
+- markdown-it-py ~= 3.0
+- nvidia-haystack == 0.1.2
+- wikipedia ~= 1.4.0
+
 ## Usage
 
 ### Standalone Usage
 
 Run the agent directly:
+```
+aiq run --config_file mercury_agent/configs/config.yml --input "Your query here"
 ```

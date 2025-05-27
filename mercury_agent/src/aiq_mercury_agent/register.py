@@ -260,12 +260,18 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
                 
                 # Create a prompt for summarizing Wikipedia results
                 summary_prompt = PromptTemplate.from_template("""
-                You are a helpful AI assistant. Your task is to summarize the following Wikipedia content in response to the user's query.
+                You are a helpful AI assistant. Your task is to summarize and then analyze the information in the found Wikipedia content and provide a clear response to the user's query.
                 {detail_instructions}
-                Focus on providing a comprehensive and informative summary that directly addresses the user's query.
+                Do this in steps:
+                First, focus on providing a comprehensive and informative summary that directly addresses the main topic of user's query.
                 Include relevant details, examples, and key points from the content.
                 Maintain a natural flow and ensure all information is accurate and well-organized.
                 Make sure to complete all sentences and paragraphs - do not cut off mid-sentence.
+                Second step: analyze the user query and realize if it is appropriate to provide an answer derived from the page or just provide a summary.
+                Example 1: Tell me something about Batman. - you provide a simple summary.
+                Example 2: What is the name of Batman's sidekick? - you find Batman's Wikipedia page, read through the content and provide the answer - Robin.
+                Example 3: Do you know anything about Belgrade, Serbia? - you provide a simple summary.
+                Example 4: When was Belgrade liberated in second world war? - you find the page of Belgrade, Serbia and provide the answer - 1944.
                 Do not include any meta-commentary or notes about the summary itself.
                 Do not mention the word count in your response.
                 Do not add any disclaimers or notes about the content.

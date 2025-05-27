@@ -175,6 +175,89 @@ Thumbs.db
 
 - **Committed and Pushed Changes**: Successfully committed and pushed all changes to the remote repository.
 
+### 6. Text-to-Speech Setup (May 8, 2025)
+- Set up NVIDIA NGC API key for container registry access:
+  ```bash
+  export NGC_API_KEY="your-ngc-api-key-here"
+  ```
+
+- Authenticated with NVIDIA Container Registry:
+  ```bash
+  echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+  ```
+
+- Deployed magpie-tts-multilingual model using Docker:
+  ```bash
+  docker run -it --rm --name=magpie-tts-multilingual \
+      --runtime=nvidia \
+      --gpus '"device=0"' \
+      --shm-size=8GB \
+      -e NGC_API_KEY=$NGC_API_KEY \
+      -e NIM_HTTP_API_PORT=9000 \
+      -e NIM_GRPC_API_PORT=50051 \
+      -p 9000:9000 \
+      -p 50051:50051 \
+      nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+  ```
+
+**Configuration Details:**
+- HTTP API accessible at: `http://localhost:9000`
+- gRPC API accessible at: `localhost:50051`
+- Container uses NVIDIA GPU runtime
+- Allocated 8GB shared memory
+- Exposed ports for both HTTP and gRPC communication
+
+**Next Steps:**
+1. Test TTS service functionality
+2. Integrate TTS capabilities into Mercury Interface
+3. Add voice output options to chat interface
+
+### 7. Text-to-Speech Integration (May 9, 2025)
+- Integrated NVIDIA RIVA Magpie TTS model with Mercury Interface
+- Added TTS endpoint to server.js
+- Implemented client-side audio playback
+- Added error handling and logging
+
+**Key Changes:**
+1. Added TTS endpoint in `server.js`:
+```javascript
+app.post('/api/tts', async (req, res) => {
+    const { text, voice } = req.body;
+    // ... TTS implementation ...
+});
+```
+
+2. Added client-side TTS handling in `script.js`:
+```javascript
+async function handleTTS(text) {
+    // ... TTS client implementation ...
+}
+```
+
+3. Added audio output toggle in the interface:
+```html
+<input type="checkbox" id="outputModeToggle">
+<label for="outputModeToggle" id="outputModeLabel">Text Output</label>
+```
+
+**Configuration Details:**
+- TTS service running on: `0.0.0.0:50051`
+- Default voice: `Magpie-Multilingual.ES-US.Diego.Happy`
+- Audio format: WAV (LINEAR_PCM)
+- Sample rate: 16kHz
+
+**Features:**
+- Toggle between text and audio output
+- Automatic audio playback for AI responses
+- Error handling and user feedback
+- Temporary file cleanup
+
+**Next Steps:**
+1. Add voice selection options
+2. Implement audio caching
+3. Add volume control
+4. Support for more languages
+
 ## How to Use the Mercury Agent
 
 ### Basic Usage

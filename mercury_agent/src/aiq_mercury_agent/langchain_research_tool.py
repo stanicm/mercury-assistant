@@ -84,18 +84,13 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
             page = await asyncio.get_event_loop().run_in_executor(
                 None, partial(wikipedia.page, query, auto_suggest=False)
             )
-            # Get the summary and content, ensuring we have complete sentences
-            summary = page.summary
+            # Get the full content
             content = page.content
             
-            # If the summary ends mid-sentence, try to complete it
-            if not any(summary.endswith(p) for p in ['.', '!', '?']):
-                # Find the next sentence boundary in the content
-                next_period = content.find('.', len(summary))
-                if next_period != -1:
-                    summary = content[:next_period + 1]
+            # Format the content to ensure complete sentences
+            formatted_content = content.replace('\n', ' ').strip()
             
-            return page.url, content
+            return page.url, formatted_content
             
         except (wikipedia.exceptions.PageError, wikipedia.exceptions.DisambiguationError):
             # If direct page fails, try search
@@ -107,18 +102,13 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
                     page = await asyncio.get_event_loop().run_in_executor(
                         None, partial(wikipedia.page, search_results[0], auto_suggest=False)
                     )
-                    # Get the summary and content, ensuring we have complete sentences
-                    summary = page.summary
+                    # Get the full content
                     content = page.content
                     
-                    # If the summary ends mid-sentence, try to complete it
-                    if not any(summary.endswith(p) for p in ['.', '!', '?']):
-                        # Find the next sentence boundary in the content
-                        next_period = content.find('.', len(summary))
-                        if next_period != -1:
-                            summary = content[:next_period + 1]
+                    # Format the content to ensure complete sentences
+                    formatted_content = content.replace('\n', ' ').strip()
                     
-                    return page.url, content
+                    return page.url, formatted_content
             except Exception:
                 pass
                 
@@ -135,12 +125,15 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
             url, content = await wikipedia_search(topic)
             
             if content:
-                # Format the content to ensure complete sentences
-                formatted_content = content.replace('\n', ' ').strip()
-                return f"{formatted_content}\n\nSource: {url}"
+                return f"{content}\n\nSource: {url}"
             return url
             
         except Exception as e:
-            return f"Error processing query: {str(e)}"
+            return {
+                'input': inputs,
+                'chosen_worker_agent': None,
+                'chat_history': [],
+                'final_output': f"Error: {str(e)}"
+            }
 
     yield FunctionInfo.from_fn(_arun, description="find a Wikipedia page and generate a summary for a given query")

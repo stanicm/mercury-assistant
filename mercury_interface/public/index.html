@@ -37,9 +37,9 @@
         <div class="sidebar">
             <h2>Models</h2>
             <div class="model-selector">
-                <select id="model-dropdown">
+                <select id="modelSelect">
                     <option value="mercury-agent">Mercury Agent</option>
-                    <option value="llama-3.1-405b">Llama 3.1 405B (NVIDIA)</option>
+                    <option value="llama-3.1-405b">Llama 3.1 405B</option>
                     <option value="nemotron">Nemotron Super 49B</option>
                     <option value="nim-llm">NIM LLM (0.0.0.0:8000)</option>
                     <option value="gpt-4o-mini">GPT-4o Mini</option>
@@ -74,6 +74,13 @@
                         <button id="image-upload-btn">🖼️</button>
                         <input type="file" id="image-upload" accept="image/*" multiple style="display: none">
                         <button id="mic-btn"><span class="icon">🎤</span></button>
+                        <div class="output-mode-toggle">
+                            <label class="switch">
+                                <input type="checkbox" id="outputModeToggle">
+                                <span class="slider round"></span>
+                            </label>
+                            <span id="outputModeLabel">Text Output</span>
+                        </div>
                     </div>
                     <div class="message-input-container">
                         <textarea id="message-input" placeholder="Type your message here..."></textarea>

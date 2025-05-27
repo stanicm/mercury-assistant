@@ -51,6 +51,7 @@ llms:
     model_name: nvdev/meta/llama-3.3-70b-instruct
     #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
     temperature: 0.0                   # Lower temperature for more focused responses
+    max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds
 
   # LLM for chitchat with higher temperature for more creative responses
@@ -59,7 +60,7 @@ llms:
     model_name: nvdev/meta/llama-3.3-70b-instruct
     #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
     temperature: 0.7                   # Higher temperature for more creative responses
-    max_tokens: 256                    # Maximum response length
+    max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds
 
 # Embedding model configuration

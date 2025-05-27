@@ -8,12 +8,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageUploadBtn = document.getElementById('image-upload-btn');
     const imageUpload = document.getElementById('image-upload');
     const micButton = document.getElementById('mic-btn');
-    const modelDropdown = document.getElementById('model-dropdown');
+    const modelSelect = document.getElementById('modelSelect');
+    const outputModeToggle = document.getElementById('outputModeToggle');
+    const outputModeLabel = document.getElementById('outputModeLabel');
     
     console.log("Script loaded. Send button:", sendButton);
     
     // State variables
-    let selectedModel = modelDropdown.value;
+    let selectedModel = modelSelect.value;
     let uploadedFiles = [];
     let uploadedImages = [];
     let isRecording = false;
@@ -22,26 +24,16 @@ document.addEventListener('DOMContentLoaded', function() {
     let isSending = false;  // Add flag to prevent double sends
     
     // Event Listeners
-    modelDropdown.addEventListener('change', handleModelChange);
+    modelSelect.addEventListener('change', () => {
+        selectedModel = modelSelect.value;
+    });
     
-    // Single event handler for send button
-    if (sendButton) {
-        sendButton.addEventListener('click', function(e) {
-            e.preventDefault();  // Prevent any default behavior
-            console.log("Send button clicked");
-            if (!isSending) {  // Only send if not already sending
-                sendMessage();
-            }
-        });
-    }
+    sendButton.addEventListener('click', sendMessage);
     
-    // Enter key handler
     messageInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            if (!isSending) {  // Only send if not already sending
-                sendMessage();
-            }
+            sendMessage();
         }
     });
     
@@ -53,33 +45,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     micButton.addEventListener('click', toggleRecording);
     
-    // Functions
-    function handleModelChange() {
-        selectedModel = modelDropdown.value;
-        console.log("Model changed to:", selectedModel);
-        if (selectedModel === 'custom') {
-            document.getElementById('custom-endpoint').classList.remove('hidden');
-        } else {
-            document.getElementById('custom-endpoint').classList.add('hidden');
-        }
-    }
+    outputModeToggle.addEventListener('change', function() {
+        outputModeLabel.textContent = this.checked ? 'Audio Output' : 'Text Output';
+    });
     
+    // Functions
     function sendMessage() {
-        if (isSending) {  // Prevent double sends
-            console.log("Already sending a message, ignoring");
-            return;
-        }
+        if (isSending) return;
         
-        console.log('sendMessage function called');
         const message = messageInput.value.trim();
+        if (!message && uploadedFiles.length === 0 && uploadedImages.length === 0) return;
         
-        if (!message && uploadedFiles.length === 0 && uploadedImages.length === 0) {
-            console.log("No message to send");
-            return;
-        }
-        
-        isSending = true;  // Set flag to prevent double sends
-        console.log("Sending message:", message);
+        isSending = true;
         
         // Add user message to chat
         addMessageToChat('user', message);
@@ -102,8 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Show loading indicator
         const loadingId = showLoadingIndicator();
         
-        // Make API request directly with fetch
-        console.log("Sending API request to /api/chat");
+        // Make API request
         fetch('/api/chat', {
             method: 'POST',
             headers: {
@@ -112,7 +88,6 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify(requestData)
         })
         .then(response => {
-            console.log("Received response:", response.status);
             if (!response.ok) {
                 return response.text().then(text => {
                     throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
@@ -121,11 +96,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return response.json();
         })
         .then(data => {
-            console.log("Parsed response data:", data);
-            // Remove loading indicator
             removeLoadingIndicator(loadingId);
-            // Add AI response to chat
-            addMessageToChat('ai', data.text);
+            // Store the response text before adding it to chat
+            const responseText = data.text;
+            addMessageToChat('ai', responseText);
+            
+            // If audio output is enabled, generate TTS with only the latest response
+            if (outputModeToggle.checked) {
+                handleTTS(responseText);
+            }
         })
         .catch(error => {
             console.error('Error:', error);
@@ -133,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
             addMessageToChat('ai', 'Sorry, there was an error processing your request: ' + error.message);
         })
         .finally(() => {
-            isSending = false;  // Reset flag when done
+            isSending = false;
         });
     }
     
@@ -482,5 +461,84 @@ document.addEventListener('DOMContentLoaded', function() {
         markdownContent.classList.add('markdown-content');
         markdownContent.innerHTML = marked.parse(response); // Use marked to render markdown
         responseElement.appendChild(markdownContent);
+    }
+
+    // Function to handle Text-to-Speech conversion and playback
+    async function handleTTS(text) {
+        try {
+            // Ensure we're only processing the text we received
+            const textToProcess = text.trim();
+            console.log('Starting TTS request for text:', textToProcess);
+            console.log('Text length in characters:', textToProcess.length);
+            console.log('Text length in words:', textToProcess.split(/\s+/).length);
+            
+            // Make a POST request to the TTS endpoint
+            const response = await fetch('/api/tts', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    text: textToProcess,
+                    voice: 'Magpie-Multilingual.ES-US.Diego.Happy'
+                })
+            });
+
+            // Handle any errors from the TTS service
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || 'TTS request failed');
+            }
+
+            // Get the audio data as a blob
+            // This blob contains the WAV audio data generated by the TTS service
+            const audioBlob = await response.blob();
+            console.log('Received audio blob:', audioBlob.size, 'bytes');
+            
+            // Validate the audio blob size
+            // WAV files should be at least 1KB to contain valid audio data
+            if (audioBlob.size < 1000) {
+                throw new Error('Received audio data is too small to be valid');
+            }
+
+            // Create a URL for the audio blob
+            // This URL can be used by the Audio API to play the sound
+            const audioUrl = URL.createObjectURL(audioBlob);
+            
+            // Create a new Audio object for playback
+            const audio = new Audio(audioUrl);
+            
+            // Add event listeners for debugging and cleanup
+            audio.addEventListener('error', (e) => {
+                console.error('Audio playback error:', e);
+            });
+            
+            audio.addEventListener('playing', () => {
+                console.log('Audio started playing');
+            });
+            
+            audio.addEventListener('ended', () => {
+                console.log('Audio playback completed');
+                // Clean up the blob URL to prevent memory leaks
+                URL.revokeObjectURL(audioUrl);
+            });
+
+            // Play the audio
+            try {
+                await audio.play();
+                console.log('Audio play() called successfully');
+            } catch (error) {
+                console.error('Error playing audio:', error);
+                throw error;
+            }
+
+        } catch (error) {
+            console.error('Error in TTS:', error);
+            // Show error message to user in the chat interface
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'message ai-message error';
+            errorMessage.textContent = `Error generating speech: ${error.message}`;
+            chatMessages.appendChild(errorMessage);
+        }
     }
 });
