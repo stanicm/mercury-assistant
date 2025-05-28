@@ -58,34 +58,42 @@
             </div>
         </div>
         <div class="main-content">
-            <div class="chat-container">
-                <div id="chat-messages" class="chat-messages">
-                    <!-- Messages will be added here -->
-                    <div class="message ai-message">
-                        <div class="markdown-content">
-                            <p>Hello! My name is Mercury and I will be your AI assistant. How can I help you today?</p>
+            <div class="content-wrapper">
+                <div class="chat-container">
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Messages will be added here -->
+                        <div class="message ai-message">
+                            <div class="markdown-content">
+                                <p>Hello! My name is Mercury and I will be your AI assistant. How can I help you today?</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="input-area">
+                        <div class="upload-options">
+                            <button id="file-upload-btn">📄</button>
+                            <input type="file" id="file-upload" multiple style="display: none">
+                            <button id="image-upload-btn">🖼️</button>
+                            <input type="file" id="image-upload" accept="image/*" multiple style="display: none">
+                            <button id="mic-btn"><span class="icon">🎤</span></button>
+                            <div class="output-mode-toggle">
+                                <label class="switch">
+                                    <input type="checkbox" id="outputModeToggle">
+                                    <span class="slider round"></span>
+                                </label>
+                                <span id="outputModeLabel">Text Output</span>
+                            </div>
+                        </div>
+                        <div class="message-input-container">
+                            <textarea id="message-input" placeholder="Type your message here..."></textarea>
+                            <button id="send-btn">Send</button>
                         </div>
                     </div>
                 </div>
-                <div class="input-area">
-                    <div class="upload-options">
-                        <button id="file-upload-btn">📄</button>
-                        <input type="file" id="file-upload" multiple style="display: none">
-                        <button id="image-upload-btn">🖼️</button>
-                        <input type="file" id="image-upload" accept="image/*" multiple style="display: none">
-                        <button id="mic-btn"><span class="icon">🎤</span></button>
-                        <div class="output-mode-toggle">
-                            <label class="switch">
-                                <input type="checkbox" id="outputModeToggle">
-                                <span class="slider round"></span>
-                            </label>
-                            <span id="outputModeLabel">Text Output</span>
-                        </div>
-                    </div>
-                    <div class="message-input-container">
-                        <textarea id="message-input" placeholder="Type your message here..."></textarea>
-                        <button id="send-btn">Send</button>
-                    </div>
+                <div class="video-container">
+                    <video id="background-video" autoplay loop muted playsinline>
+                        <source src="/videos/static_1F.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
                 </div>
             </div>
         </div>

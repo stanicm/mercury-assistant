@@ -1,3 +1,27 @@
+// Initialize video
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('background-video');
+    if (video) {
+        // Function to switch videos randomly
+        function switchVideo() {
+            const videos = ['static_1F.mp4', 'static_2F.mp4'];
+            const randomVideo = videos[Math.floor(Math.random() * videos.length)];
+            video.src = `/videos/${randomVideo}`;
+            video.play().catch(function(error) {
+                console.log("Video autoplay failed:", error);
+            });
+        }
+
+        // Switch video when the current one ends
+        video.addEventListener('ended', switchVideo);
+
+        // Initial video play
+        video.play().catch(function(error) {
+            console.log("Video autoplay failed:", error);
+        });
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const chatMessages = document.getElementById('chat-messages');
