@@ -1,28 +1,134 @@
-// Initialize video
+// Global variables for video and audio state
+let isAudioPlaying = false;
+let currentAudio = null;
+
+// Function to handle Text-to-Speech conversion and playback
+async function handleTTS(text) {
+    console.log('handleTTS called with text:', text);
+    try {
+        const textToProcess = text.trim();
+        console.log('Starting TTS request for text:', textToProcess);
+        
+        const response = await fetch('/api/tts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                text: textToProcess,
+                voice: 'Magpie-Multilingual.ES-US.Diego.Happy'
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || 'TTS request failed');
+        }
+
+        const audioBlob = await response.blob();
+        console.log('Received audio blob:', audioBlob.size, 'bytes');
+        
+        if (audioBlob.size < 1000) {
+            throw new Error('Received audio data is too small to be valid');
+        }
+
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        
+        // Update audio state when playing starts
+        audio.addEventListener('playing', () => {
+            console.log('Audio started playing');
+            isAudioPlaying = true;
+            if (window.switchVideo) {
+                window.switchVideo();
+            }
+        });
+        
+        // Update audio state when playing ends
+        audio.addEventListener('ended', () => {
+            console.log('Audio playback completed');
+            isAudioPlaying = false;
+            if (window.switchVideo) {
+                window.switchVideo();
+            }
+            URL.revokeObjectURL(audioUrl);
+        });
+
+        audio.addEventListener('error', (e) => {
+            console.error('Audio playback error:', e);
+            isAudioPlaying = false;
+            if (window.switchVideo) {
+                window.switchVideo();
+            }
+        });
+
+        try {
+            await audio.play();
+            console.log('Audio play() called successfully');
+        } catch (error) {
+            console.error('Error playing audio:', error);
+            isAudioPlaying = false;
+            if (window.switchVideo) {
+                window.switchVideo();
+            }
+            throw error;
+        }
+
+    } catch (error) {
+        console.error('Error in TTS:', error);
+        isAudioPlaying = false;
+        if (window.switchVideo) {
+            window.switchVideo();
+        }
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'message ai-message error';
+        errorMessage.textContent = `Error generating speech: ${error.message}`;
+        document.getElementById('chat-messages').appendChild(errorMessage);
+    }
+}
+
+// Initialize video and audio state tracking
 document.addEventListener('DOMContentLoaded', function() {
     const video = document.getElementById('background-video');
+    const outputModeToggle = document.getElementById('outputModeToggle');
+
     if (video) {
-        // Function to switch videos randomly
-        function switchVideo() {
-            const videos = ['static_1F.mp4', 'static_2F.mp4'];
-            const randomVideo = videos[Math.floor(Math.random() * videos.length)];
+        // Function to switch videos based on audio state
+        window.switchVideo = function() {
+            console.log('Switching video. Audio playing:', isAudioPlaying, 'Output mode:', outputModeToggle.checked);
+            const staticVideos = ['static_1F.mp4', 'static_2F.mp4'];
+            const explainVideos = ['explain_1F.mp4', 'explain_2F.mp4'];
+            
+            // Choose video set based on audio state
+            const videoSet = (outputModeToggle.checked && isAudioPlaying) ? explainVideos : staticVideos;
+            const randomVideo = videoSet[Math.floor(Math.random() * videoSet.length)];
+            
+            console.log('Switching to video:', randomVideo);
             video.src = `/videos/${randomVideo}`;
             video.play().catch(function(error) {
                 console.log("Video autoplay failed:", error);
             });
-        }
+        };
 
         // Switch video when the current one ends
-        video.addEventListener('ended', switchVideo);
+        video.addEventListener('ended', window.switchVideo);
+
+        // Listen for audio output toggle changes
+        outputModeToggle.addEventListener('change', function() {
+            console.log('Output mode changed:', this.checked);
+            if (!this.checked) {
+                // If audio is turned off, switch to static videos
+                isAudioPlaying = false;
+                window.switchVideo();
+            }
+        });
 
         // Initial video play
         video.play().catch(function(error) {
             console.log("Video autoplay failed:", error);
         });
     }
-});
 
-document.addEventListener('DOMContentLoaded', function() {
     // DOM Elements
     const chatMessages = document.getElementById('chat-messages');
     const messageInput = document.getElementById('message-input');
@@ -33,7 +139,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageUpload = document.getElementById('image-upload');
     const micButton = document.getElementById('mic-btn');
     const modelSelect = document.getElementById('modelSelect');
-    const outputModeToggle = document.getElementById('outputModeToggle');
     const outputModeLabel = document.getElementById('outputModeLabel');
     
     console.log("Script loaded. Send button:", sendButton);
@@ -485,84 +590,5 @@ document.addEventListener('DOMContentLoaded', function() {
         markdownContent.classList.add('markdown-content');
         markdownContent.innerHTML = marked.parse(response); // Use marked to render markdown
         responseElement.appendChild(markdownContent);
-    }
-
-    // Function to handle Text-to-Speech conversion and playback
-    async function handleTTS(text) {
-        try {
-            // Ensure we're only processing the text we received
-            const textToProcess = text.trim();
-            console.log('Starting TTS request for text:', textToProcess);
-            console.log('Text length in characters:', textToProcess.length);
-            console.log('Text length in words:', textToProcess.split(/\s+/).length);
-            
-            // Make a POST request to the TTS endpoint
-            const response = await fetch('/api/tts', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    text: textToProcess,
-                    voice: 'Magpie-Multilingual.ES-US.Diego.Happy'
-                })
-            });
-
-            // Handle any errors from the TTS service
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || 'TTS request failed');
-            }
-
-            // Get the audio data as a blob
-            // This blob contains the WAV audio data generated by the TTS service
-            const audioBlob = await response.blob();
-            console.log('Received audio blob:', audioBlob.size, 'bytes');
-            
-            // Validate the audio blob size
-            // WAV files should be at least 1KB to contain valid audio data
-            if (audioBlob.size < 1000) {
-                throw new Error('Received audio data is too small to be valid');
-            }
-
-            // Create a URL for the audio blob
-            // This URL can be used by the Audio API to play the sound
-            const audioUrl = URL.createObjectURL(audioBlob);
-            
-            // Create a new Audio object for playback
-            const audio = new Audio(audioUrl);
-            
-            // Add event listeners for debugging and cleanup
-            audio.addEventListener('error', (e) => {
-                console.error('Audio playback error:', e);
-            });
-            
-            audio.addEventListener('playing', () => {
-                console.log('Audio started playing');
-            });
-            
-            audio.addEventListener('ended', () => {
-                console.log('Audio playback completed');
-                // Clean up the blob URL to prevent memory leaks
-                URL.revokeObjectURL(audioUrl);
-            });
-
-            // Play the audio
-            try {
-                await audio.play();
-                console.log('Audio play() called successfully');
-            } catch (error) {
-                console.error('Error playing audio:', error);
-                throw error;
-            }
-
-        } catch (error) {
-            console.error('Error in TTS:', error);
-            // Show error message to user in the chat interface
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'message ai-message error';
-            errorMessage.textContent = `Error generating speech: ${error.message}`;
-            chatMessages.appendChild(errorMessage);
-        }
     }
 });
