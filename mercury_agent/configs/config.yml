@@ -40,7 +40,12 @@ functions:
   # Haystack chitchat agent configuration
   haystack_chitchat_agent:
     _type: haystack_chitchat_agent
-    llm_name: nvdev/meta/llama-3.3-70b-instruct
+    # llm_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+    # model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+    # base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
+    llm_name: google/gemma-2-9b-it
+    model_name: google/gemma-2-9b-it
+    base_url: "http://localhost:8000/v1"  # Local NIM server base URL
     timeout: 90                        # Request timeout in seconds
 
 # Language Model configurations
@@ -48,8 +53,10 @@ llms:
   # Primary LLM for general tasks
   nim_llm:
     _type: nim
-    model_name: nvdev/meta/llama-3.3-70b-instruct
-    #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
+    # model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+    # base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
+    model_name: google/gemma-2-9b-it
+    base_url: "http://localhost:8000/v1"  # Local NIM server base URL
     temperature: 0.0                   # Lower temperature for more focused responses
     max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds
@@ -57,8 +64,10 @@ llms:
   # LLM for chitchat with higher temperature for more creative responses
   chitchat_llm:
     _type: nim
-    model_name: nvdev/meta/llama-3.3-70b-instruct
-    #model_name: nvdev/nvidia/llama-3.1-nemotron-70b-instruct
+    # model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+    # base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
+    model_name: google/gemma-2-9b-it
+    base_url: "http://localhost:8000/v1"  # Local NIM server base URL
     temperature: 0.7                   # Higher temperature for more creative responses
     max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds

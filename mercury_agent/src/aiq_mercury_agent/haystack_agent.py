@@ -48,8 +48,10 @@ class HaystackChitchatConfig(FunctionBaseConfig, name="haystack_chitchat_agent")
     
     Attributes:
         llm_name: Reference to the language model to be used for generating responses
+        base_url: The base URL for the NIM server (optional, defaults to NVIDIA cloud)
     """
     llm_name: LLMRef
+    base_url: str = "https://integrate.api.nvidia.com/v1"
 
 
 @register_function(config_type=HaystackChitchatConfig)
@@ -72,27 +74,49 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
     """
     from haystack_integrations.components.generators.nvidia import NvidiaGenerator
 
-    # Initialize the NVIDIA generator with specified parameters
+    # Initialize the NVIDIA generator with specified parameters - this one is using the local Gemma 2 Google model NIM.
     generator = NvidiaGenerator(
         model=tool_config.llm_name,
-        api_url="https://integrate.api.nvidia.com/v1",
+        api_url=tool_config.base_url,
         model_arguments={
             "temperature": 0.5,  # Increased for more personality
             "top_p": 0.9,       # Increased for more variety
             "max_tokens": 1024,  # Maximum length of generated response
             "messages": [
                 {
-                    "role": "system",
+                    "role": "user",
                     "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
-                    You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
-                    You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
-                    You occasionally use analogies and examples to make your explanations more relatable.
-                    You're patient and thorough in your responses, but also concise when appropriate. 
-                    If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
+    #                 You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
+    #                 You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
+    #                 You occasionally use analogies and examples to make your explanations more relatable.
+    #                 You're patient and thorough in your responses, but also concise when appropriate. 
+    #                 If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
                 }
             ]
         }
     )
+
+    # Original configuration (commented out if you want to use the original NVIDIA APIs)
+    # generator = NvidiaGenerator(
+    #     model=tool_config.llm_name,
+    #     api_url=tool_config.base_url,
+    #     model_arguments={
+    #         "temperature": 0.5,  # Increased for more personality
+    #         "top_p": 0.9,       # Increased for more variety
+    #         "max_tokens": 1024,  # Maximum length of generated response
+    #         "messages": [
+    #             {
+    #                 "role": "system",
+    #                 "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
+    #                 You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
+    #                 You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
+    #                 You occasionally use analogies and examples to make your explanations more relatable.
+    #                 You're patient and thorough in your responses, but also concise when appropriate. 
+    #                 If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
+    #             }
+    #         ]
+    #     }
+    # )
 
     # Warm up the generator for faster initial response
     generator.warm_up()

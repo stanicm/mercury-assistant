@@ -272,10 +272,11 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
                 Example 2: What is the name of Batman's sidekick? - you find Batman's Wikipedia page, read through the content and provide the answer - Robin.
                 Example 3: Do you know anything about Belgrade, Serbia? - you provide a simple summary.
                 Example 4: When was Belgrade liberated in second world war? - you find the page of Belgrade, Serbia and provide the answer - 1944.
+                Example 5: What can you tell me about Led Zeppelin? - you provide a simple summary.
+                Example 6: Who was the guitarist of Led Zeppelin? - you find the page of Led Zeppelin and provide the answer - Jimmy Page.
                 Do not include any meta-commentary or notes about the summary itself.
                 Do not mention the word count in your response.
                 Do not add any disclaimers or notes about the content.
-                Simply provide the summary.
 
                 User Query: {query}
 

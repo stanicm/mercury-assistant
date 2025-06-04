@@ -1,5 +1,5 @@
 # Mercury Agent Development Log
-*Last Updated: May 7, 2025*
+*Last Updated: June 4, 2025*
 
 ## Overview
 This document summarizes the development journey of the Mercury Agent, a smart assistant that can answer questions using Wikipedia, handle general conversations, and search through documentation.
@@ -257,6 +257,54 @@ async function handleTTS(text) {
 2. Implement audio caching
 3. Add volume control
 4. Support for more languages
+
+### 7. Model Switching Implementation (June 4, 2025)
+- **Added Local Model Support**:
+  - Implemented support for local Gemma 2 9B model
+  - Added configuration options for switching between models
+  - Updated YAML configuration structure
+
+**Key Changes:**
+1. Modified `config.yml` to support both models:
+```yaml
+# Primary LLM for general tasks
+nim_llm:
+  _type: nim
+  model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+  base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
+  # model_name: google/gemma-2-9b-it
+  # base_url: "http://localhost:8000/v1"  # Local NIM server base URL
+```
+
+2. Updated Haystack agent configuration:
+```yaml
+haystack_chitchat_agent:
+  _type: haystack_chitchat_agent
+  llm_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+  model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
+  base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
+  # llm_name: google/gemma-2-9b-it
+  # model_name: google/gemma-2-9b-it
+  # base_url: "http://localhost:8000/v1"  # Local NIM server base URL
+```
+
+**Implementation Details:**
+1. Added support for local NIM server configuration
+2. Implemented model switching through YAML configuration
+3. Updated documentation to reflect new capabilities
+4. Added error handling for model-specific requirements
+
+**Testing Results:**
+1. Successfully tested with Llama 3.3 70B model via NVIDIA cloud API
+2. Successfully tested with local Gemma 2 9B model
+3. Verified smooth switching between models
+4. Confirmed proper error handling for missing configurations
+
+**Documentation Updates:**
+1. Added model configuration section to README
+2. Updated development log with implementation details
+3. Added configuration examples
+4. Documented switching procedure
 
 ## How to Use the Mercury Agent
 
