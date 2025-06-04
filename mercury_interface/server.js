@@ -504,7 +504,7 @@ app.post('/api/tts', async (req, res) => {
                 '--text', chunk,
                 '-o', tempFile,
                 '--encoding', 'LINEAR_PCM',
-                '--sample-rate-hz', '16000'
+                '--sample-rate-hz', '22050'  // Updated to match source sample rate
             ]);
 
             let errorOutput = '';
@@ -530,7 +530,7 @@ app.post('/api/tts', async (req, res) => {
                     console.log(`TTS process closed with code: ${code}, signal: ${signal}`);
                     if (code !== 0) {
                         console.error('TTS process failed with error output:', errorOutput);
-                        reject(new Error(errorOutput || 'TTS generation failed'));
+                        reject(new Error(`TTS generation failed: ${errorOutput}`));
                     } else {
                         resolve();
                     }
@@ -542,9 +542,13 @@ app.post('/api/tts', async (req, res) => {
                 });
             });
 
-            // Verify the file was created
+            // Verify the file was created and has content
             if (!fs.existsSync(tempFile)) {
                 throw new Error('TTS output file was not created');
+            }
+            const stats = fs.statSync(tempFile);
+            if (stats.size === 0) {
+                throw new Error('TTS output file is empty');
             }
         }
 
@@ -567,6 +571,15 @@ app.post('/api/tts', async (req, res) => {
                 }
             });
         });
+
+        // Verify the combined file exists and has content
+        if (!fs.existsSync(outputFile)) {
+            throw new Error('Combined audio file was not created');
+        }
+        const stats = fs.statSync(outputFile);
+        if (stats.size === 0) {
+            throw new Error('Combined audio file is empty');
+        }
 
         // Read the combined audio file
         const combinedAudio = fs.readFileSync(outputFile);

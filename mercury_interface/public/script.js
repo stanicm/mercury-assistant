@@ -32,8 +32,16 @@ async function handleTTS(text) {
             throw new Error('Received audio data is too small to be valid');
         }
 
+        // Clean up any existing audio
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.src = '';
+            URL.revokeObjectURL(currentAudio.src);
+        }
+
         const audioUrl = URL.createObjectURL(audioBlob);
         const audio = new Audio(audioUrl);
+        currentAudio = audio;
         
         // Update audio state when playing starts
         audio.addEventListener('playing', () => {
@@ -52,6 +60,7 @@ async function handleTTS(text) {
                 window.switchVideo();
             }
             URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
         });
 
         audio.addEventListener('error', (e) => {
@@ -60,6 +69,9 @@ async function handleTTS(text) {
             if (window.switchVideo) {
                 window.switchVideo();
             }
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
+            throw new Error(`Audio playback failed: ${e.message}`);
         });
 
         try {
@@ -71,6 +83,8 @@ async function handleTTS(text) {
             if (window.switchVideo) {
                 window.switchVideo();
             }
+            URL.revokeObjectURL(audioUrl);
+            currentAudio = null;
             throw error;
         }
 
