@@ -2,9 +2,9 @@
 
 ![Mercury Banner](mercury_interface/public/Mercury_banner.jpg)
 
-Mercury is an AI assistant built using the NVIDIA AIQ Toolkit, NVIDIA RAG Blueprint*, NVIDIA RIVA and running NVIDIA NIM-deployed models that combines multiple frameworks (LangChain, LlamaIndex, and Haystack) to provide a versatile prototyping/learning platform. It consists of two main components that can be used independently or together:
+Mercury is an AI assistant built using the NVIDIA NeMo Agent Toolkit (NAT), NVIDIA RAG Blueprint*, NVIDIA RIVA and running NVIDIA NIM-deployed models that combines multiple frameworks (LangChain, LlamaIndex, and Haystack) to provide a versatile prototyping/learning platform. It consists of two main components that can be used independently or together:
 
-1. **Mercury Agent**: An agentic backend system (based on NVIDIA's Agent Intelligence Toolkit) that provides:
+1. **Mercury Agent**: An agentic backend system (based on NVIDIA's NeMo Agent Toolkit) that provides:
    - Wikipedia-based research capabilities
    - Document retrieval and RAG (Retrieval-Augmented Generation)
    - Chit-chat functionality
@@ -72,25 +72,19 @@ When used together, Mercury Interface provides a user-friendly way to access all
 - NVIDIA API Key for LLM access
 
 ### Required Python Packages
-1. AIQ Toolkit and LangChain integration:
+1. NVIDIA NeMo Agent Toolkit (NAT) and framework integrations:
    ```bash
-   pip install agentiq
-   pip install 'agentiq[langchain]'  # Installs AIQ with LangChain integration
+   pip install nvidia-nat nvidia-nat-langchain nvidia-nat-llama-index
    ```
 
-2. Additional Python dependencies:
-   ```bash
-   pip install langchain llama-index haystack
-   ```
-
-3. Mercury Agent specific dependencies:
+2. Mercury Agent specific dependencies:
    ```bash
    pip install arxiv~=2.1.3 colorama~=0.4.6 markdown-it-py~=3.0 nvidia-haystack==0.1.2 wikipedia~=1.4.0
    ```
 
-### Installing NVIDIA Riva Client, Sox and Prerequisites
+### Installing NVIDIA Riva Client and Audio Tools
 
-For speech recognition functionality, you'll need to install the NVIDIA Riva client and its prerequisites and make sure you have the necessary NVIDIA API keys configured in your environment.:
+For speech recognition functionality, you'll need to install the NVIDIA Riva client and audio processing tools:
 
 1. Install PortAudio development files:
    ```bash
@@ -106,24 +100,25 @@ For speech recognition functionality, you'll need to install the NVIDIA Riva cli
    ```bash
    pip install nvidia-riva-client
    ```
+
+4. Install FFmpeg (required for browser audio conversion):
    
-- Sox for audio recording (required for voice input in Mercury Interface) - required for the microphone recording feature. The server uses Sox to record audio in the correct format (16-bit WAV, mono channel, 16kHz sample rate) for the Parakeet ASR service.
+   #### Ubuntu/Debian
+   ```bash
+   sudo apt-get install ffmpeg
+   ```
 
-  
-  #### Ubuntu/Debian
-  ```bash
-  sudo apt-get install sox
-  ```
+   #### macOS (using Homebrew)
+   ```bash
+   brew install ffmpeg
+   ```
 
-  #### macOS (using Homebrew)
-  ```bash
-  brew install sox
-  ```
+   #### Windows - NOT TESTED
+   ```bash
+   # Download and install from https://ffmpeg.org/download.html
+   ```
 
-  #### Windows - NOT TESTED
-  ```bash
-  # Download and install from https://sourceforge.net/projects/sox/
-  ```
+**Note:** Mercury Interface uses **browser-based audio capture** (via JavaScript MediaRecorder API), so no client-side audio tools are needed. The browser captures audio from your microphone and sends it to the server, where FFmpeg converts it to WAV format for transcription.
   
 ## Deployment Notes
 
@@ -165,7 +160,7 @@ When deploying this application to different environments, consider the followin
 ### Using Mercury Agent
 ```bash
 cd mercury_agent
-aiq run --config_file=configs/config.yml --input "your question here"
+nat run --config_file=configs/config.yml --input "your question here"
 ```
 
 ### Using Mercury Interface
@@ -195,6 +190,73 @@ Then open your browser to http://localhost:5000
 ## License
 
 This project is licensed under the Apache License 2.0 - see the LICENSE file for details. 
+
+### Optional: Voice Input Setup (Speech-to-Text)
+
+Mercury Interface supports voice input using NVIDIA's Parakeet ASR model. This is an optional feature that requires:
+
+1. **NVIDIA Container Toolkit** installed (for Docker GPU access)
+2. **NGC API Key** for accessing the Parakeet ASR NIM
+3. **Browser requirements**: HTTPS or localhost access for microphone permissions
+
+#### Step 1: Set up NGC API Key and Docker authentication
+
+```bash
+export NGC_API_KEY="your-ngc-api-key-here"
+echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
+```
+
+#### Step 2: Deploy Parakeet ASR NIM
+
+**Important:** Use version **1.1.0** for better GPU compatibility:
+
+```bash
+docker run --rm --name=parakeet-1-1b-rnnt-multilingual \
+    --gpus all \
+    --shm-size=8GB \
+    -e NGC_API_KEY \
+    -e NIM_HTTP_API_PORT=9000 \
+    -e NIM_GRPC_API_PORT=50051 \
+    -p 9000:9000 \
+    -p 50051:50051 \
+    nvcr.io/nim/nvidia/parakeet-1-1b-rnnt-multilingual:1.1.0
+```
+
+Wait for the message: `INFO: Uvicorn running on http://0.0.0.0:9000`
+
+For more details: https://build.nvidia.com/nvidia/parakeet-ctc-1_1b-asr
+
+#### Step 3: Browser Access for Microphone
+
+Modern browsers (Chrome, Firefox, Edge) require **HTTPS** or **localhost** for microphone access due to security policies.
+
+**Option A: Local Access (Simplest)**
+If accessing from the server machine:
+```
+http://localhost:5000
+```
+
+**Option B: Remote Access via SSH Tunnel (Recommended)**
+If accessing from a remote machine:
+
+```bash
+# On your client machine (Mac/Windows/Linux)
+ssh -L 5000:localhost:5000 your-username@your-server-ip
+
+# Then open in browser:
+http://localhost:5000
+```
+
+Keep the SSH terminal open while using Mercury. The tunnel forwards the server's port 5000 to your local machine.
+
+**Option C: HTTPS Setup**
+Set up SSL certificates for proper HTTPS access (more complex, production-ready).
+
+#### Features:
+- 🎤 Browser-based audio capture (works from any device)
+- 🔄 Automatic audio format conversion (WebM → WAV)
+- 🌍 Multilingual support (23+ languages)
+- ⚡ Real-time transcription via local Parakeet ASR
 
 ### Optional: Text-to-Speech Setup
 

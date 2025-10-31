@@ -28,9 +28,10 @@ Mercury Interface is a web-based frontend that provides a user-friendly way to i
   - Chat history management
 
 - **Voice Input**:
-  - Microphone support
-  - Speech-to-text using NVIDIA Riva
-  - Real-time transcription
+  - Browser-based microphone capture (no client-side tools needed)
+  - Speech-to-text using NVIDIA Parakeet ASR NIM
+  - Real-time transcription with local inference
+  - Supports remote access via SSH tunnel
 
 - **Model Integration**:
   - Mercury Agent integration
@@ -147,7 +148,7 @@ It can call a Llama 3.1 405B for chit chat and Nemotron Super 49B model for reas
 
 Note that the RAG setup in the Mercury agent is set up such that it expects a rag server up and running on port 8081. The RAG Blueprint from NVIDIA is not a part of this repository for now, so if you would like to set the RAG up, we would direct you to the following page: https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline
 
-There is also the ASR ability using the API call to Parakeet. The input format seems to have specific requirements (16 bit wav, mono), so I ran across the *sox* tool that can effectively record directly to the needed format. 
+There is also the ASR ability using a local Parakeet ASR NIM. The interface now uses **browser-based audio capture** via JavaScript MediaRecorder API, which works from any device. The browser captures audio and sends it to the server, where FFmpeg converts it to the required format (16-bit WAV, mono, 16kHz) before transcription. For remote access, use an SSH tunnel to enable microphone permissions. 
 
 CANNOT DO:
 

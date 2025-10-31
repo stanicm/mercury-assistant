@@ -47,33 +47,94 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// API endpoint to start recording
-app.post('/api/start-recording', (req, res) => {
+// API endpoint to handle browser-uploaded audio for transcription
+app.post('/api/transcribe-audio', upload.single('audio'), async (req, res) => {
   try {
-    // Kill any existing recording process
-    if (recordProcess) {
-      recordProcess.kill();
+    if (!req.file) {
+      return res.status(400).json({ error: 'No audio file uploaded' });
     }
     
-    // Start recording with Sox
-    recordProcess = spawn('sox', [
-      '-d', // Use default audio input device
-      '-c', '1', // Mono channel
-      '-r', '16000', // 16kHz sample rate
-      '-b', '16', // 16-bit depth
-      outputFilePath // Output file at the modified path
+    console.log('Received audio file:', req.file.originalname, req.file.size, 'bytes');
+    
+    const inputFile = req.file.path;
+    const outputWavFile = `/tmp/converted_${Date.now()}.wav`;
+    
+    // Convert WebM/audio to WAV format (16kHz, mono, 16-bit) using ffmpeg
+    const convertProcess = spawnSync('ffmpeg', [
+      '-i', inputFile,
+      '-ar', '16000',  // 16kHz sample rate
+      '-ac', '1',      // Mono channel
+      '-sample_fmt', 's16',  // 16-bit signed
+      '-y',            // Overwrite output file
+      outputWavFile
     ]);
     
-    console.log('Recording started');
+    if (convertProcess.error || convertProcess.status !== 0) {
+      console.error('FFmpeg conversion error:', convertProcess.stderr.toString());
+      fs.unlinkSync(inputFile);
+      return res.status(500).json({ error: 'Failed to convert audio format' });
+    }
     
-    recordProcess.stderr.on('data', (data) => {
-      console.error(`Sox stderr: ${data}`);
+    console.log('Audio converted to WAV format');
+    console.log('Starting transcription...');
+    
+    // Transcribe the converted audio
+    const transcribeProcess = spawn('python', [
+      '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file.py',
+      '--server', 'localhost:50051',
+      '--language-code', 'en-US',
+      '--input-file', outputWavFile
+    ]);
+    
+    let transcriptionData = '';
+    let errorData = '';
+    
+    transcribeProcess.stdout.on('data', (data) => {
+      transcriptionData += data.toString();
     });
     
-    res.json({ success: true, message: 'Recording started' });
+    transcribeProcess.stderr.on('data', (data) => {
+      errorData += data.toString();
+      console.error(`Transcription stderr: ${data}`);
+    });
+    
+    transcribeProcess.on('close', (code) => {
+      console.log(`Transcription process exited with code: ${code}`);
+      console.log(`Transcription output: "${transcriptionData}"`);
+      
+      // Clean up temp files
+      try {
+        fs.unlinkSync(inputFile);
+        fs.unlinkSync(outputWavFile);
+      } catch (err) {
+        console.error('Error deleting temp files:', err);
+      }
+      
+      if (code !== 0) {
+        console.error(`Transcription failed with error: ${errorData}`);
+        return res.status(500).json({
+          error: 'Transcription failed',
+          details: errorData
+        });
+      }
+      
+      // Process transcription output
+      let transcription = transcriptionData.trim();
+      transcription = transcription.replace(/##\s*/g, '');
+      
+      if (!transcription || transcription.length === 0) {
+        console.warn('Empty transcription received');
+        return res.status(500).json({ 
+          error: 'No speech detected. Please speak clearly and try again.'
+        });
+      }
+      
+      res.json({ success: true, transcription });
+    });
+    
   } catch (error) {
-    console.error('Error starting recording:', error);
-    res.status(500).json({ error: 'Failed to start recording' });
+    console.error('Error processing audio:', error);
+    res.status(500).json({ error: 'Failed to process audio: ' + error.message });
   }
 });
 
@@ -82,25 +143,28 @@ app.post('/api/stop-recording', (req, res) => {
   try {
     // Stop the recording process
     if (recordProcess) {
-      recordProcess.kill();
+      // Send SIGINT (Ctrl+C) instead of SIGTERM for cleaner shutdown
+      recordProcess.kill('SIGINT');
       recordProcess = null;
       console.log('Recording stopped');
     }
     
-    // Wait a moment for the file to be properly saved
+    // Wait for the file to be properly saved (increased to 2 seconds)
     setTimeout(() => {
       // Check if the file exists
       if (!fs.existsSync(outputFilePath)) {
+        console.error('Recording file not found at:', outputFilePath);
         return res.status(500).json({ error: 'Recording file not found' });
       }
       
+      console.log('Starting transcription for file:', outputFilePath);
+      
       // Run the transcription script with the correct absolute path
+      // For local Parakeet ASR, use: '--server', 'localhost:50051'
+      // For cloud ASR, use: '--server', 'grpc.nvcf.nvidia.com:443', '--use-ssl', with metadata
       const transcribeProcess = spawn('python', [
         '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file.py',
-        '--server', 'grpc.nvcf.nvidia.com:443',
-        '--use-ssl',
-        '--metadata', 'function-id', 'e6fa172c-79bf-4b9c-bb37-14fe17b4226c',
-        '--metadata', 'authorization', `Bearer ${process.env.NVIDIA_API_KEY}`,
+        '--server', 'localhost:50051',  // Local Parakeet ASR server
         '--language-code', 'en-US',
         '--input-file', outputFilePath
       ]);
@@ -118,8 +182,14 @@ app.post('/api/stop-recording', (req, res) => {
       });
       
       transcribeProcess.on('close', (code) => {
+        console.log(`Transcription process exited with code: ${code}`);
+        console.log(`Transcription stdout data length: ${transcriptionData.length}`);
+        console.log(`Transcription stdout data: "${transcriptionData}"`);
+        console.log(`Transcription stderr data length: ${errorData.length}`);
+        
         if (code !== 0) {
           console.error(`Transcription process exited with code ${code}`);
+          console.error(`Stderr: ${errorData}`);
           return res.status(500).json({
             error: 'Transcription failed',
             details: errorData
@@ -131,6 +201,25 @@ app.post('/api/stop-recording', (req, res) => {
         
         // Remove the "# #" prefix if present
         transcription = transcription.replace(/##\s*/g, '');
+        
+        console.log(`Final transcription after processing: "${transcription}"`);
+        
+        // Don't delete file for debugging - copy it first
+        const debugFilePath = `/tmp/mercury_recording_${Date.now()}.wav`;
+        try {
+          fs.copyFileSync(outputFilePath, debugFilePath);
+          console.log(`Debug: Audio file saved to ${debugFilePath}`);
+        } catch (err) {
+          console.error('Error copying debug file:', err);
+        }
+        
+        if (!transcription || transcription.length === 0) {
+          console.warn('Empty transcription received');
+          console.warn(`Audio file size: ${fs.statSync(outputFilePath).size} bytes`);
+          return res.status(500).json({ 
+            error: 'No transcription received. Audio may be too quiet or microphone not working.'
+          });
+        }
 
         // Clean up the output file
         try {
@@ -141,7 +230,7 @@ app.post('/api/stop-recording', (req, res) => {
         
         res.json({ success: true, transcription });
       });
-    }, 1000); // Wait 1 second for the file to be properly saved
+    }, 2000); // Wait 2 seconds for the file to be properly saved
   } catch (error) {
     console.error('Error stopping recording or transcribing:', error);
     res.status(500).json({ error: 'Failed to process recording' });
@@ -213,7 +302,7 @@ app.post('/api/chat', async (req, res) => {
       
       console.log('Starting Mercury Agent process...');
       // Execute Mercury Agent process
-      const mercuryProcess = spawn('aiq', [
+      const mercuryProcess = spawn('nat', [
         'run',
         '--config_file=/home/milos/mercury-assistant/mercury_agent/configs/config.yml',
         '--input',

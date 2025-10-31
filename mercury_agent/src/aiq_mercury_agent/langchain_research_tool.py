@@ -22,12 +22,12 @@ import wikipedia
 import asyncio
 from functools import partial
 
-from aiq.builder.builder import Builder
-from aiq.builder.framework_enum import LLMFrameworkEnum
-from aiq.builder.function_info import FunctionInfo
-from aiq.cli.register_workflow import register_function
-from aiq.data_models.component_ref import LLMRef
-from aiq.data_models.function import FunctionBaseConfig
+from nat.builder.builder import Builder
+from nat.builder.framework_enum import LLMFrameworkEnum
+from nat.builder.function_info import FunctionInfo
+from nat.cli.register_workflow import register_function
+from nat.data_models.component_ref import LLMRef
+from nat.data_models.function import FunctionBaseConfig
 from langchain_core.prompts import PromptTemplate
 from pydantic import BaseModel, Field
 
@@ -136,4 +136,4 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
                 'final_output': f"Error: {str(e)}"
             }
 
-    yield FunctionInfo.from_fn(_arun, description="find a Wikipedia page and generate a summary for a given query")
+    yield FunctionInfo.from_fn(fn=_arun, description="find a Wikipedia page and generate a summary for a given query")

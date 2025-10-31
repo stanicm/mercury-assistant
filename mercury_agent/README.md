@@ -17,7 +17,7 @@ limitations under the License.
 
 # Mercury Agent
 
-Mercury Agent is a backend system that demonstrates how to integrate multiple AI frameworks seamlessly using a set of LangChain / LangGraph agents in NVIDIA AgentIQ. It can be used independently or as part of the Mercury AI Assistant system.
+Mercury Agent is a backend system that demonstrates how to integrate multiple AI frameworks seamlessly using a set of LangChain / LangGraph agents in NVIDIA NeMo Agent Toolkit (NAT). It can be used independently or as part of the Mercury AI Assistant system.
 
 ## Overview
 
@@ -26,7 +26,7 @@ Mercury Agent combines the strengths of multiple AI frameworks:
 - **LangChain Research Tool** – For web search and research
 - **LlamaIndex RAG Tool** – For document Q&A and retrieval
 
-The system uses AgentIQ's plugin system and `Builder` object to wrap these tools as LangChain Tools, demonstrating how different AI frameworks can work together seamlessly.
+The system uses NAT's plugin system and `Builder` object to wrap these tools as LangChain Tools, demonstrating how different AI frameworks can work together seamlessly.
 
 ## Key Features
 
@@ -67,7 +67,7 @@ Please refer to the main [README.md](../README.md) for complete installation ins
 
 Run the agent directly:
 ```
-aiq run --config_file mercury_agent/configs/config.yml --input "Your query here"
+nat run --config_file mercury_agent/configs/config.yml --input "Your query here"
 ```
 
 ### Model Configuration

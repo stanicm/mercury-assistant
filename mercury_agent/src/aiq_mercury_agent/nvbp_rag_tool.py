@@ -39,11 +39,11 @@ import json
 import httpx
 from pydantic import ConfigDict
 
-from aiq.builder.builder import Builder
-from aiq.builder.framework_enum import LLMFrameworkEnum
-from aiq.builder.function_info import FunctionInfo
-from aiq.cli.register_workflow import register_function
-from aiq.data_models.function import FunctionBaseConfig
+from nat.builder.builder import Builder
+from nat.builder.framework_enum import LLMFrameworkEnum
+from nat.builder.function_info import FunctionInfo
+from nat.cli.register_workflow import register_function
+from nat.data_models.function import FunctionBaseConfig
 
 logger = logging.getLogger(__name__)
 
@@ -140,4 +140,4 @@ async def nvbp_rag_tool(tool_config: RAGServerConfig, builder: Builder):
             logger.error("Error querying RAG server: %s", str(e))
             return f"Error querying RAG server: {str(e)}"
 
-    yield FunctionInfo.from_fn(_arun, description="Query the RAG server for relevant information")
+    yield FunctionInfo.from_fn(fn=_arun, description="Query the RAG server for relevant information")

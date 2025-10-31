@@ -13,8 +13,8 @@ dependencies = [
   "wikipedia~=1.4.0",
 ]
 requires-python = ">=3.12"
-description = "Custom AgentIQ Workflow"
+description = "Custom NVIDIA NAT Workflow"
 classifiers = ["Programming Language :: Python"]
 
-[project.entry-points.'aiq.components']
+[project.entry-points.'nat.components']
 aiq_mercury_agent = "aiq_mercury_agent.register"

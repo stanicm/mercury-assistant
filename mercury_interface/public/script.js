@@ -403,94 +403,200 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function startRecording() {
-        isRecording = true;
-        micButton.classList.add('recording');
-        micButton.querySelector('.icon').textContent = '⏹️';
-        
-        // Show recording status to user
-        addMessageToChat('system', 'Recording started...');
-        
-        // Make a request to start recording on the server
-        fetch('/api/start-recording', {
-            method: 'POST'
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log("Recording started:", data);
-        })
-        .catch(error => {
+    async function startRecording() {
+        try {
+            // Detailed diagnostics
+            console.log('=== Microphone Diagnostics ===');
+            console.log('Browser:', navigator.userAgent);
+            console.log('Protocol:', window.location.protocol);
+            console.log('Hostname:', window.location.hostname);
+            console.log('isSecureContext:', window.isSecureContext);
+            console.log('navigator.mediaDevices:', navigator.mediaDevices);
+            console.log('getUserMedia available:', navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            
+            // Check if getUserMedia is supported
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                const isLocalhost = window.location.hostname === 'localhost' || 
+                                   window.location.hostname === '127.0.0.1' || 
+                                   window.location.hostname === '[::1]';
+                
+                // Browser is blocking getUserMedia
+                if (!window.isSecureContext && !isLocalhost) {
+                    throw new Error('🔒 Your browser blocks microphone on HTTP (non-localhost).\n\n' +
+                                  '✅ Best solution: Access via http://localhost:5000\n' +
+                                  '   (on the server machine, open Mercury at localhost)\n\n' +
+                                  'Alternative: Set up HTTPS (requires SSL certificate)');
+                }
+                
+                throw new Error('❌ Microphone API not available.\n\n' +
+                              'Debug info:\n' +
+                              '• navigator.mediaDevices: ' + (navigator.mediaDevices ? 'exists' : 'missing') + '\n' +
+                              '• getUserMedia: ' + (navigator.mediaDevices?.getUserMedia ? 'exists' : 'missing') + '\n' +
+                              '• isSecureContext: ' + window.isSecureContext);
+            }
+            
+            console.log('Requesting microphone access...');
+            
+            // Request microphone access from the browser
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    sampleRate: 16000
+                }
+            });
+            
+            console.log('Microphone access granted');
+            
+            // Determine best supported mime type
+            let mimeType = 'audio/webm';
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) {
+                mimeType = 'audio/ogg;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                mimeType = 'audio/mp4';
+            }
+            
+            console.log('Using mime type:', mimeType);
+            
+            // Create MediaRecorder to capture audio
+            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream, { mimeType: mimeType });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    audioChunks.push(event.data);
+                    console.log('Audio chunk received:', event.data.size, 'bytes');
+                }
+            };
+            
+            mediaRecorder.onstop = () => {
+                console.log('MediaRecorder stopped');
+                // Stop all tracks to release microphone
+                stream.getTracks().forEach(track => track.stop());
+            };
+            
+            mediaRecorder.onerror = (error) => {
+                console.error('MediaRecorder error:', error);
+                addMessageToChat('system', 'Recording error: ' + error.message);
+            };
+            
+            mediaRecorder.start();
+            isRecording = true;
+            micButton.classList.add('recording');
+            micButton.querySelector('.icon').textContent = '⏹️';
+            
+            // Show recording status to user
+            addMessageToChat('system', '🎤 Recording from your browser microphone...');
+            console.log('Browser recording started');
+            
+        } catch (error) {
             console.error('Error starting recording:', error);
-            addMessageToChat('system', 'Error starting recording. Please try again.');
-            stopRecording();
-        });
+            let errorMessage = 'Error accessing microphone: ' + error.message;
+            
+            if (error.name === 'NotAllowedError') {
+                errorMessage = '❌ Microphone permission denied. Please allow microphone access in your browser settings.';
+            } else if (error.name === 'NotFoundError') {
+                errorMessage = '❌ No microphone found. Please connect a microphone and try again.';
+            } else if (error.name === 'NotReadableError') {
+                errorMessage = '❌ Microphone is already in use by another application.';
+            } else if (error.message.includes('HTTPS') || error.message.includes('secure')) {
+                errorMessage = '❌ ' + error.message + '\n\n💡 Try accessing via: http://localhost:5000 on the server machine.';
+            }
+            
+            addMessageToChat('system', errorMessage);
+            isRecording = false;
+            micButton.classList.remove('recording');
+            micButton.querySelector('.icon').textContent = '🎤';
+        }
     }
     
     function stopRecording() {
-        if (isRecording) {
+        if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
             isRecording = false;
             micButton.classList.remove('recording');
             micButton.querySelector('.icon').textContent = '🎤';
             
+            // Stop the MediaRecorder
+            mediaRecorder.stop();
+            
             // Show loading indicator
             const loadingId = showLoadingIndicator();
             
-            // Make a request to stop recording and get transcription
-            fetch('/api/stop-recording', {
-            method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-            removeLoadingIndicator(loadingId);
-            if (data.transcription) {
-                // Add user message to chat
-                addMessageToChat('user', data.transcription);
-                
-                // Prepare data for API request
-                const requestData = {
-                model: selectedModel,
-                message: data.transcription
-                };
-                
-                // Show loading indicator for LLM response
-                const llmLoadingId = showLoadingIndicator();
-                
-                // Make API request directly with fetch
-                fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(requestData)
-                })
-                .then(response => {
-                if (!response.ok) {
-                    return response.text().then(text => {
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+            // Wait for all audio data to be collected
+            mediaRecorder.onstop = async () => {
+                try {
+                    // Create audio blob from recorded chunks
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    console.log('Audio blob created:', audioBlob.size, 'bytes');
+                    
+                    // Convert to WAV format for better compatibility
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'recording.webm');
+                    
+                    // Upload to server for transcription
+                    const response = await fetch('/api/transcribe-audio', {
+                        method: 'POST',
+                        body: formData
                     });
+                    
+                    const data = await response.json();
+                    removeLoadingIndicator(loadingId);
+                    
+                    if (data.transcription) {
+                        // Add user message to chat
+                        addMessageToChat('user', data.transcription);
+                        
+                        // Prepare data for API request
+                        const requestData = {
+                            model: selectedModel,
+                            message: data.transcription
+                        };
+                        
+                        // Show loading indicator for LLM response
+                        const llmLoadingId = showLoadingIndicator();
+                        
+                        // Make API request to get AI response
+                        fetch('/api/chat', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(requestData)
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                return response.text().then(text => {
+                                    throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            removeLoadingIndicator(llmLoadingId);
+                            const responseText = data.text;
+                            addMessageToChat('ai', responseText);
+                            
+                            // If audio output is enabled, generate TTS
+                            if (outputModeToggle.checked) {
+                                handleTTS(responseText);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            removeLoadingIndicator(llmLoadingId);
+                            addMessageToChat('ai', 'Sorry, there was an error processing your request: ' + error.message);
+                        });
+                    } else {
+                        addMessageToChat('system', data.error || 'No transcription received. Please try again.');
+                    }
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    removeLoadingIndicator(loadingId);
+                    addMessageToChat('system', 'Error processing audio: ' + error.message);
                 }
-                return response.json();
-                })
-                .then(data => {
-                // Remove loading indicator
-                removeLoadingIndicator(llmLoadingId);
-                // Add AI response to chat
-                addMessageToChat('ai', data.text);
-                })
-                .catch(error => {
-                console.error('Error:', error);
-                removeLoadingIndicator(llmLoadingId);
-                addMessageToChat('ai', 'Sorry, there was an error processing your request: ' + error.message);
-                });
-            } else {
-                addMessageToChat('system', 'No transcription received. Please try again.');
-            }
-            })
-            .catch(error => {
-            console.error('Error stopping recording:', error);
-            removeLoadingIndicator(loadingId);
-            addMessageToChat('system', 'Error processing audio. Please try again.');
-            });
+            };
         }
     }          
     

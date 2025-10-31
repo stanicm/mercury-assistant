@@ -33,11 +33,11 @@ particularly for casual conversation, greetings, or queries that don't fit other
 
 import logging
 
-from aiq.builder.builder import Builder
-from aiq.builder.function_info import FunctionInfo
-from aiq.cli.register_workflow import register_function
-from aiq.data_models.component_ref import LLMRef
-from aiq.data_models.function import FunctionBaseConfig
+from nat.builder.builder import Builder
+from nat.builder.function_info import FunctionInfo
+from nat.cli.register_workflow import register_function
+from nat.data_models.component_ref import LLMRef
+from nat.data_models.function import FunctionBaseConfig
 
 logger = logging.getLogger(__name__)
 
@@ -74,29 +74,7 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
     """
     from haystack_integrations.components.generators.nvidia import NvidiaGenerator
 
-    # Initialize the NVIDIA generator with specified parameters - this one is using the local Gemma 2 Google model NIM.
-    generator = NvidiaGenerator(
-        model=tool_config.llm_name,
-        api_url=tool_config.base_url,
-        model_arguments={
-            "temperature": 0.5,  # Increased for more personality
-            "top_p": 0.9,       # Increased for more variety
-            "max_tokens": 1024,  # Maximum length of generated response
-            "messages": [
-                {
-                    "role": "user",
-                    "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
-    #                 You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
-    #                 You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
-    #                 You occasionally use analogies and examples to make your explanations more relatable.
-    #                 You're patient and thorough in your responses, but also concise when appropriate. 
-    #                 If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
-                }
-            ]
-        }
-    )
-
-    # Original configuration (commented out if you want to use the original NVIDIA APIs)
+    # # Initialize the NVIDIA generator with specified parameters - this one is using the local Gemma 2 Google model NIM.
     # generator = NvidiaGenerator(
     #     model=tool_config.llm_name,
     #     api_url=tool_config.base_url,
@@ -106,17 +84,39 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
     #         "max_tokens": 1024,  # Maximum length of generated response
     #         "messages": [
     #             {
-    #                 "role": "system",
+    #                 "role": "user",
     #                 "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
-    #                 You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
-    #                 You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
-    #                 You occasionally use analogies and examples to make your explanations more relatable.
-    #                 You're patient and thorough in your responses, but also concise when appropriate. 
-    #                 If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
+    # #                 You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
+    # #                 You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
+    # #                 You occasionally use analogies and examples to make your explanations more relatable.
+    # #                 You're patient and thorough in your responses, but also concise when appropriate. 
+    # #                 If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
     #             }
     #         ]
     #     }
     # )
+
+    # Original configuration (commented out if you want to use the original NVIDIA APIs)
+    generator = NvidiaGenerator(
+        model=tool_config.llm_name,
+        api_url=tool_config.base_url,
+        model_arguments={
+            "temperature": 0.5,  # Increased for more personality
+            "top_p": 0.9,       # Increased for more variety
+            "max_tokens": 1024,  # Maximum length of generated response
+            "messages": [
+                {
+                    "role": "system",
+                    "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
+                    You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
+                    You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
+                    You occasionally use analogies and examples to make your explanations more relatable.
+                    You're patient and thorough in your responses, but also concise when appropriate. 
+                    If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
+                }
+            ]
+        }
+    )
 
     # Warm up the generator for faster initial response
     generator.warm_up()
@@ -136,10 +136,13 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
         Returns:
             str: The generated response from the language model
         """
-        out = generator.run(prompt=inputs)
+        # Run the synchronous Haystack generator in an executor
+        import asyncio
+        loop = asyncio.get_event_loop()
+        out = await loop.run_in_executor(None, lambda: generator.run(prompt=inputs))
         output = out["replies"][0]  # noqa: W293 E501
 
-        logger.info("output from langchain_research_tool: %s", output)  # noqa: W293 E501
+        logger.info("output from haystack_chitchat_agent: %s", output)  # noqa: W293 E501
         return output
 
-    yield FunctionInfo.from_fn(_arun, description="extract relevent information from search the web")  # noqa: W293 E501
+    yield FunctionInfo.from_fn(fn=_arun, description="handle general conversation and chitchat queries")  # noqa: W293 E501
