@@ -11,6 +11,13 @@ This directory contains comprehensive documentation for the Mercury AI Assistant
   - ASR and TTS deployment instructions
   - Troubleshooting guide
 
+- **[NEMOTRON_DEPLOYMENT.md](./NEMOTRON_DEPLOYMENT.md)** - Nemotron Nano 9B deployment guide ⭐ NEW
+  - Standard vs memory-optimized deployment
+  - Memory optimization parameters explained
+  - Saves 23GB VRAM (88GB → 65GB)
+  - Multi-model deployment strategies
+  - Performance tuning and troubleshooting
+
 ### Release Notes
 - **[RELEASE_v1.2.md](./RELEASE_v1.2.md)** - Version 1.2 release notes (Current)
   - Full voice-to-voice conversation support

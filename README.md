@@ -226,7 +226,49 @@ Wait for the message: `{"status":"ready"}` when checking `http://localhost:9000/
 
 For more details: https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr
 
-#### Step 3: Deploy Magpie TTS NIM (Optional)
+#### Step 3: Deploy Nemotron Nano 9B LLM (Required for Mercury Agent)
+
+**Standard deployment (~88GB VRAM)**:
+
+```bash
+docker run -d --rm --name=nemotron-nano-9b \
+    --gpus all \
+    --shm-size=16GB \
+    -e NGC_API_KEY \
+    -p 8000:8000 \
+    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
+```
+
+**Memory-optimized deployment (~65GB VRAM)** - Recommended for GPUs with limited VRAM:
+
+```bash
+docker run -d --rm --name=nemotron-nano-9b \
+    --gpus all \
+    --shm-size=16GB \
+    -e NGC_API_KEY \
+    -e NIM_MAX_BATCH_SIZE=1 \
+    -e NIM_MAX_MODEL_LEN=4096 \
+    -e NIM_KVCACHE_PERCENT=0.6 \
+    -e NIM_LOW_MEMORY_MODE=1 \
+    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.6 \
+    -p 8000:8000 \
+    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
+```
+
+**Memory optimization saves 23GB VRAM** (88GB → 65GB) using:
+- `NIM_MAX_BATCH_SIZE=1`: Single request processing
+- `NIM_MAX_MODEL_LEN=4096`: Reduced sequence length
+- `NIM_KVCACHE_PERCENT=0.6`: 60% memory for KV cache
+- `NIM_LOW_MEMORY_MODE=1`: Low memory optimizations
+- `NIM_KV_CACHE_HOST_MEM_FRACTION=0.6`: Host memory for KV cache
+
+Wait for initialization. Check status at `http://localhost:8000/v1/health/ready`
+
+For more details: 
+- Model page: https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2
+- Detailed deployment guide: [documentation/NEMOTRON_DEPLOYMENT.md](./documentation/NEMOTRON_DEPLOYMENT.md)
+
+#### Step 4: Deploy Magpie TTS NIM (Optional)
 
 For text-to-speech output with 40+ multilingual voices:
 
@@ -246,7 +288,7 @@ Wait for initialization (may take several minutes). Check status at `http://loca
 
 For more details: https://build.nvidia.com/nvidia/magpie-tts-multilingual
 
-#### Step 4: Browser Access for Microphone
+#### Step 5: Browser Access for Microphone
 
 Modern browsers (Chrome, Firefox, Edge) require **HTTPS** or **localhost** for microphone access due to security policies.
 

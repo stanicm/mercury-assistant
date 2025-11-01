@@ -25,10 +25,11 @@ Mercury now supports complete speech-to-speech interaction with locally deployed
 
 **GPU Memory Optimization**
 - Successfully running 3 models simultaneously on single GPU:
-  - Nemotron Nano 9B: ~88GB (LLM)
+  - Nemotron Nano 9B: ~65GB with optimization (standard: ~88GB)
   - Parakeet 0.6B ASR: ~2-4GB (Speech-to-Text)
   - Magpie TTS: ~4-6GB (Text-to-Speech)
-- Total VRAM usage: ~96GB on Blackwell Max-Q GPU
+- Total VRAM usage: ~73GB optimized (standard: ~96GB) on Blackwell Max-Q GPU
+- **New**: Memory optimization parameters save 23GB for Nemotron Nano 9B
 
 **Server Updates**
 - Updated `server.js` to use offline transcription script for Parakeet 0.6B
@@ -105,7 +106,41 @@ docker run -d --rm --name=magpie-tts-multilingual \
     nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
 ```
 
-3. **Start Mercury**:
+3. **Deploy Nemotron Nano 9B (LLM)**:
+
+**Standard deployment (~88GB VRAM)**:
+```bash
+docker run -d --rm --name=nemotron-nano-9b \
+    --gpus all --shm-size=16GB \
+    -e NGC_API_KEY \
+    -p 8000:8000 \
+    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
+```
+
+**Memory-optimized deployment (~65GB VRAM)** - Recommended for memory-constrained GPUs:
+```bash
+docker run -d --rm --name=nemotron-nano-9b \
+    --gpus all --shm-size=16GB \
+    -e NGC_API_KEY \
+    -e NIM_MAX_BATCH_SIZE=1 \
+    -e NIM_MAX_MODEL_LEN=4096 \
+    -e NIM_KVCACHE_PERCENT=0.6 \
+    -e NIM_LOW_MEMORY_MODE=1 \
+    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.6 \
+    -p 8000:8000 \
+    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
+```
+
+**Memory Optimization Parameters:**
+- `NIM_MAX_BATCH_SIZE=1`: Limits batch processing to single request
+- `NIM_MAX_MODEL_LEN=4096`: Reduces maximum sequence length
+- `NIM_KVCACHE_PERCENT=0.6`: Allocates 60% of available memory for KV cache
+- `NIM_LOW_MEMORY_MODE=1`: Enables low memory optimizations
+- `NIM_KV_CACHE_HOST_MEM_FRACTION=0.6`: Uses host memory for additional KV cache
+
+These parameters reduce VRAM usage from ~88GB to ~65GB, saving 23GB.
+
+4. **Start Mercury**:
 ```bash
 cd mercury_interface
 node server.js
@@ -119,7 +154,8 @@ node server.js
 
 ### Hardware
 - NVIDIA GPU with CUDA support
-- Minimum 96GB VRAM for full voice-to-voice setup
+- **Standard setup**: Minimum 96GB VRAM (Nemotron 88GB + Parakeet 2-4GB + Magpie 4-6GB)
+- **Memory-optimized**: Minimum 73GB VRAM (Nemotron 65GB + Parakeet 2-4GB + Magpie 4-6GB)
 - Tested on: NVIDIA RTX PRO 6000 Blackwell Max-Q
 
 ### Software
