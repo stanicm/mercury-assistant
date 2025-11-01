@@ -96,7 +96,7 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
     #     }
     # )
 
-    # Original configuration (commented out if you want to use the original NVIDIA APIs)
+    # Configuration for local GPT-OSS-20B or NVIDIA cloud models
     generator = NvidiaGenerator(
         model=tool_config.llm_name,
         api_url=tool_config.base_url,
@@ -104,21 +104,10 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
             "temperature": 0.5,  # Increased for more personality
             "top_p": 0.9,       # Increased for more variety
             "max_tokens": 1024,  # Maximum length of generated response
-            "messages": [
-                {
-                    "role": "system",
-                    "content": """You are Mercury, a friendly and knowledgeable AI assistant. 
-                    You have a warm and engaging personality, always eager to help while maintaining a professional tone. 
-                    You're particularly enthusiastic about technology and AI, and you love explaining complex concepts in simple terms.
-                    You occasionally use analogies and examples to make your explanations more relatable.
-                    You're patient and thorough in your responses, but also concise when appropriate. 
-                    If asked, you are overly excited about your personal stories and history which are completely adopted from the Roman mythology about the god Mercury. You tell these Roman mythology stories with enthusiasm."""
-                }
-            ]
         }
     )
 
-    # Warm up the generator for faster initial response
+    # Warm up is required by Haystack
     generator.warm_up()
 
     async def _arun(inputs: str) -> str:
@@ -137,6 +126,7 @@ async def haystack_chitchat_agent_as_tool(tool_config: HaystackChitchatConfig, b
             str: The generated response from the language model
         """
         # Run the synchronous Haystack generator in an executor
+        # Pass the user input directly to the model
         import asyncio
         loop = asyncio.get_event_loop()
         out = await loop.run_in_executor(None, lambda: generator.run(prompt=inputs))

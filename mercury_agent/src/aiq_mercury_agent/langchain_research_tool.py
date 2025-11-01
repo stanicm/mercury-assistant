@@ -71,10 +71,20 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
     async def extract_topic(query: str) -> str:
         """Extract the main topic from the query."""
         try:
-            result = await llm_with_output.ainvoke(topic_prompt.format(query=query))
-            return result.topic.strip()
+            logger.debug("[TOPIC_EXTRACT] Input query: %s", query)
+            formatted_prompt = topic_prompt.format(query=query)
+            logger.debug("[TOPIC_EXTRACT] Formatted prompt: %s", formatted_prompt)
+            
+            result = await llm_with_output.ainvoke(formatted_prompt)
+            logger.debug("[TOPIC_EXTRACT] Raw result type: %s", type(result))
+            logger.debug("[TOPIC_EXTRACT] Raw result: %s", result)
+            
+            topic = result.topic.strip()
+            logger.info("[TOPIC_EXTRACT] Extracted topic: '%s'", topic)
+            return topic
         except Exception as e:
-            logger.error("Error extracting topic: %s", e)
+            logger.error("[TOPIC_EXTRACT] Error extracting topic: %s", e)
+            logger.info("[TOPIC_EXTRACT] Falling back to original query")
             return query
 
     async def wikipedia_search(query: str) -> tuple[str, str]:
@@ -117,15 +127,25 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
     async def _arun(inputs: str) -> str:
         """Process user input and return a Wikipedia page URL and content."""
         try:
+            print(f"\n--- Wikipedia Tool ---")
+            print(f"Input query: '{inputs}'")
+            
             # Extract the main topic first
             topic = await extract_topic(inputs)
+            print(f"Extracted topic: '{topic}'")
             logger.debug("Extracted topic: %s", topic)
             
             # Search Wikipedia with the extracted topic
             url, content = await wikipedia_search(topic)
+            print(f"Wikipedia URL: {url}")
+            print(f"Wikipedia content length: {len(content)} chars")
             
             if content:
-                return f"{content}\n\nSource: {url}"
+                result = f"{content}\n\nSource: {url}"
+                print(f"Returning {len(result)} chars total")
+                print(f"--- End Wikipedia Tool ---\n")
+                return result
+            print(f"--- End Wikipedia Tool ---\n")
             return url
             
         except Exception as e:

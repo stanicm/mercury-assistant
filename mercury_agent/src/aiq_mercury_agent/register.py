@@ -131,6 +131,19 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
     logger.info("workflow config = %s", config)
 
     llm = await builder.get_llm(llm_name=config.llm, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
+    logger.info("[LLM_INIT] LLM type: %s", type(llm))
+    logger.info("[LLM_INIT] LLM class: %s", llm.__class__.__name__)
+    logger.info("[LLM_INIT] LLM module: %s", llm.__class__.__module__)
+    
+    # Test the LLM directly
+    logger.debug("[LLM_TEST] Testing LLM with simple query...")
+    from langchain_core.messages import HumanMessage
+    test_response = await llm.ainvoke([HumanMessage(content="Say 'test' and nothing else.")])
+    logger.debug("[LLM_TEST] Test response type: %s", type(test_response))
+    logger.debug("[LLM_TEST] Test response has content: %s", hasattr(test_response, 'content'))
+    if hasattr(test_response, 'content'):
+        logger.debug("[LLM_TEST] Test response content: %s", repr(test_response.content))
+    
     research_tool = await builder.get_tool(fn_name=config.research_tool, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
     rag_tool = await builder.get_tool(fn_name=config.rag_tool, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
     chitchat_agent = await builder.get_tool(fn_name=config.chitchat_agent, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
@@ -138,14 +151,18 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
     chat_hist = ChatMessageHistory()
 
     # Define the routing prompt for classifying user queries
-    router_prompt = """
-    Given the user input below, classify it as either being about 'Research', 'Retrieve' or 'General' topic.
-    Just use one of these words as your response. \
-    'Research' - any question requiring factual knowledge on a specific topic from Wikipedia...etc
-    'Retrieve' - any question related to the topic of SPH (Smoothed Particle Hydrodynamics). This agent is also triggered if the user query explicitly mentioned RAG or the use retrieve..etc
-    'General' - answering small greeting or chitchat type of questions or everything else that does not fall into any of the above topics.
-    User query: {input}
-    Classifcation topic:"""  # noqa: E501
+    router_prompt = """/no_think
+
+You are a classifier. Your ONLY job is to output ONE word: Research, Retrieve, or General.
+
+Classification rules:
+- Research: Questions about people, places, history, science, or any factual topic
+- Retrieve: Questions about SPH (Smoothed Particle Hydrodynamics) only
+- General: Greetings, chitchat, math, or anything else
+
+User query: {input}
+
+Classification:"""  # noqa: E501
 
     # Set up the routing chain
     routing_chain = ({
@@ -188,13 +205,54 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
             Updated state with chosen agent and chat history
         """
         query = state["input"]
+        
+        print(f"\n========== ROUTER DEBUG ==========")
+        print(f"1. User query: '{query}'")
+        
+        # Format the prompt to see what will be sent
+        formatted_prompt = router_prompt.format(input=query)
+        print(f"2. Formatted prompt being sent to model:")
+        print(f"---")
+        print(formatted_prompt)
+        print(f"---")
+        
         try:
-            chosen_agent = (await supervisor_chain_with_message_history.ainvoke(
+            raw_response = (await supervisor_chain_with_message_history.ainvoke(
                 {"input": query},
                 {"configurable": {
                     "session_id": "unused"
                 }},
             ))
+            
+            print(f"3. Raw response from model: '{raw_response}'")
+            print(f"4. Type of response: {type(raw_response)}")
+            print(f"5. Response repr: {repr(raw_response)}")
+            
+            # Extract just the classification word from the response
+            # The model might output reasoning, so we need to find the actual classification
+            response_lower = raw_response.lower().strip()
+            
+            # Look for the classification words in the response
+            if 'general' in response_lower.split()[-10:]:  # Check last 10 words
+                chosen_agent = 'general'
+            elif 'research' in response_lower.split()[-10:]:
+                chosen_agent = 'research'
+            elif 'retrieve' in response_lower.split()[-10:]:
+                chosen_agent = 'retrieve'
+            else:
+                # If we can't find a clear match, try to get the last word
+                words = response_lower.split()
+                last_word = words[-1] if words else ''
+                if last_word in ['general', 'research', 'retrieve']:
+                    chosen_agent = last_word
+                else:
+                    # Default to general for chitchat if unclear
+                    chosen_agent = 'general'
+                    print(f"⚠️  Could not find clear classification, defaulting to: {chosen_agent}")
+            
+            print(f"6. Extracted classification: '{chosen_agent}'")
+            print(f"========== END ROUTER DEBUG ==========\n")
+            
             logger.debug("Supervisor classified query as: %s", chosen_agent)
         except Exception as e:
             logger.error("Error in supervisor classification: %s", str(e))
@@ -254,9 +312,15 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
             logger.debug("Chitchat response received")
         elif 'research' in worker_choice.lower():
             logger.info("Processing with Research agent", extra={'agent_type': 'research'})
+            print(f"\n========== RESEARCH AGENT DEBUG ==========")
+            print(f"1. Query received: '{query}'")
             try:
                 # Get the Wikipedia page content and URL
+                print(f"2. Calling Wikipedia search...")
                 wiki_results = await research_tool.ainvoke(query)
+                print(f"3. Wikipedia returned {len(wiki_results)} characters")
+                print(f"4. First 300 chars: {wiki_results[:300]}")
+                print(f"5. Last 100 chars: {wiki_results[-100:]}")
                 
                 # Create a prompt for summarizing Wikipedia results
                 summary_prompt = PromptTemplate.from_template("""
@@ -321,7 +385,9 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
 
                     logger.info("Target summary length: %d words", target_length)
 
-                    # Generate the summary with the appropriate length and instructions
+                    print(f"6. Calling LLM to summarize...")
+                    print(f"7. LLM will receive {len(wiki_results)} chars of Wikipedia content")
+                    
                     summary = await summary_chain.ainvoke({
                         "query": query,
                         "content": wiki_results,
@@ -329,12 +395,26 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
                         "detail_instructions": detail_instructions
                     })
 
+                    print(f"8. LLM returned. Type: {type(summary)}")
+                    print(f"9. Has 'content' attribute: {hasattr(summary, 'content')}")
+                    
+                    if hasattr(summary, 'content'):
+                        print(f"10. summary.content type: {type(summary.content)}")
+                        print(f"11. summary.content length: {len(str(summary.content))} chars")
+                        print(f"12. summary.content value: '{summary.content}'")
+                    else:
+                        print(f"10. No 'content' attr. Full summary: {summary}")
+
                     # Extract text content from AIMessage if needed
                     summary_text = str(summary.content) if hasattr(summary, 'content') else str(summary)
+                    print(f"13. Final summary_text length: {len(summary_text)} chars")
+                    print(f"14. Final summary_text: '{summary_text}'")
+                    print(f"========== END DEBUG ==========\n")
 
                     # Log the word count for monitoring
                     word_count = len(summary_text.split())
-                    logger.info("Generated summary length: %d words", word_count)
+                    logger.info("[SUMMARIZE] Generated summary length: %d words", word_count)
+                    logger.info("[SUMMARIZE] Summary text: %s", summary_text[:500])
 
                     # Return a dictionary with the required state fields
                     return {

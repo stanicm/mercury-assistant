@@ -31,17 +31,15 @@ functions:
   # Direct Wikipedia search tool configuration
   wikipedia_search:
     _type: langchain_researcher_tool
-    llm_name: nim_llm
+    llm_name: nim_llm  # Use local Nemotron Nano 9B
 
   # Haystack chitchat agent configuration
   haystack_chitchat_agent:
     _type: haystack_chitchat_agent
-    llm_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
-    model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
-    base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
-    # llm_name: google/gemma-2-9b-it
-    # model_name: google/gemma-2-9b-it
-    # base_url: "http://localhost:8000/v1"  # Local NIM server base URL
+    # Local Nemotron Nano 9B NIM
+    llm_name: nvidia/nvidia-nemotron-nano-9b-v2
+    model_name: nvidia/nvidia-nemotron-nano-9b-v2
+    base_url: "http://localhost:8000/v1"
     timeout: 90                        # Request timeout in seconds
 
 # Language Model configurations
@@ -49,10 +47,9 @@ llms:
   # Primary LLM for general tasks
   nim_llm:
     _type: nim
-    model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
-    base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
-    # model_name: google/gemma-2-9b-it
-    # base_url: "http://localhost:8000/v1"  # Local NIM server base URL
+    # Local Nemotron Nano 9B NIM
+    model_name: nvidia/nvidia-nemotron-nano-9b-v2
+    base_url: "http://localhost:8000/v1"
     temperature: 0.0                   # Lower temperature for more focused responses
     max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds
@@ -60,12 +57,20 @@ llms:
   # LLM for chitchat with higher temperature for more creative responses
   chitchat_llm:
     _type: nim
-    model_name: nvdev/meta/llama-3.3-70b-instruct  # Original Llama model
-    base_url: "https://integrate.api.nvidia.com/v1"  # Original NVIDIA cloud URL
-    # model_name: google/gemma-2-9b-it
-    # base_url: "http://localhost:8000/v1"  # Local NIM server base URL
+    # Local Nemotron Nano 9B NIM
+    model_name: nvidia/nvidia-nemotron-nano-9b-v2
+    base_url: "http://localhost:8000/v1"
     temperature: 0.7                   # Higher temperature for more creative responses
     max_tokens: 1024                    # Maximum response length
+    timeout: 180                       # Request timeout in seconds
+
+  # Cloud LLM for research summarization (LangChain compatibility)
+  cloud_research_llm:
+    _type: nim
+    model_name: nvdev/meta/llama-3.3-70b-instruct
+    base_url: "https://integrate.api.nvidia.com/v1"
+    temperature: 0.3                   # Lower temperature for factual summarization
+    max_tokens: 2048                    # Longer for summaries
     timeout: 180                       # Request timeout in seconds
 
 # Embedding model configuration
@@ -79,7 +84,7 @@ embedders:
 # Main workflow configuration
 workflow:
   _type: aiq_mercury_agent/mercury_agent  # Workflow type
-  llm: nim_llm                            # Primary LLM to use
+  llm: nim_llm                            # Local Nemotron Nano 9B for all tasks
   data_dir: ./mercury/README.md           # Data directory for RAG
   rag_tool: nvbp_rag                      # RAG tool to use
   research_tool: wikipedia_search         # Research tool to use
