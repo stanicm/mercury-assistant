@@ -206,12 +206,12 @@ export NGC_API_KEY="your-ngc-api-key-here"
 echo "$NGC_API_KEY" | docker login nvcr.io --username '$oauthtoken' --password-stdin
 ```
 
-#### Step 2: Deploy Parakeet ASR NIM
+#### Step 2: Deploy Parakeet 0.6B ASR NIM
 
-**Important:** Use version **1.1.0** for better GPU compatibility:
+**Recommended:** Parakeet 0.6B for lower VRAM usage (~2-4GB):
 
 ```bash
-docker run --rm --name=parakeet-1-1b-rnnt-multilingual \
+docker run -d --rm --name=parakeet-asr-0.6b \
     --gpus all \
     --shm-size=8GB \
     -e NGC_API_KEY \
@@ -219,14 +219,34 @@ docker run --rm --name=parakeet-1-1b-rnnt-multilingual \
     -e NIM_GRPC_API_PORT=50051 \
     -p 9000:9000 \
     -p 50051:50051 \
-    nvcr.io/nim/nvidia/parakeet-1-1b-rnnt-multilingual:1.1.0
+    nvcr.io/nim/nvidia/parakeet-ctc-0.6b-asr:latest
 ```
 
-Wait for the message: `INFO: Uvicorn running on http://0.0.0.0:9000`
+Wait for the message: `{"status":"ready"}` when checking `http://localhost:9000/v1/health/ready`
 
-For more details: https://build.nvidia.com/nvidia/parakeet-ctc-1_1b-asr
+For more details: https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr
 
-#### Step 3: Browser Access for Microphone
+#### Step 3: Deploy Magpie TTS NIM (Optional)
+
+For text-to-speech output with 40+ multilingual voices:
+
+```bash
+docker run -d --rm --name=magpie-tts-multilingual \
+    --gpus all \
+    --shm-size=8GB \
+    -e NGC_API_KEY \
+    -e NIM_HTTP_API_PORT=9001 \
+    -e NIM_GRPC_API_PORT=50052 \
+    -p 9001:9001 \
+    -p 50052:50052 \
+    nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+```
+
+Wait for initialization (may take several minutes). Check status at `http://localhost:9001/v1/health/ready`
+
+For more details: https://build.nvidia.com/nvidia/magpie-tts-multilingual
+
+#### Step 4: Browser Access for Microphone
 
 Modern browsers (Chrome, Firefox, Edge) require **HTTPS** or **localhost** for microphone access due to security policies.
 
@@ -292,4 +312,21 @@ For more details about the Magpie TTS model, visit: https://build.nvidia.com/nvi
 - Toggle between text and audio output
 - Automatic audio playback for AI responses
 - Support for multiple voices
-- High-quality multilingual speech synthesis 
+- High-quality multilingual speech synthesis
+
+## 📚 Documentation
+
+For detailed documentation, see the [documentation directory](./documentation/):
+
+- **[Voice Setup Guide](./documentation/VOICE_INPUT_SETUP.md)** - Complete setup for voice input (ASR) and output (TTS)
+- **[Release Notes v1.2](./documentation/RELEASE_v1.2.md)** - Latest release with full voice-to-voice support
+- **[Modernization Summary](./documentation/MODERNIZATION_SUMMARY.md)** - NAT v1.3.0 upgrade details
+- **[Development Log](./documentation/DEVELOPMENT_LOG.md)** - Development history and technical decisions
+
+## 🔗 External Resources
+
+- [NVIDIA NeMo Agent Toolkit](https://docs.nvidia.com/nat/)
+- [Parakeet 0.6B ASR](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr)
+- [Magpie TTS Multilingual](https://build.nvidia.com/nvidia/magpie-tts-multilingual)
+- [Nemotron Nano 9B](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2)
+- [NVIDIA RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline)

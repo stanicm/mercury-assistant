@@ -10,7 +10,8 @@ Mercury's browser interface includes an **optional voice input feature** that al
 
 ✅ **Text-based chat**: Fully functional in both CLI and browser interface  
 ✅ **Mercury Agent**: Successfully modernized to NVIDIA NeMo Agent Toolkit (NAT) v1.3.0  
-⚠️ **Voice input**: Requires additional NGC permissions (see below)
+✅ **Voice input**: Parakeet 0.6B ASR running on ports 9000/50051  
+✅ **Voice output**: Magpie TTS Multilingual running on ports 9001/50052
 
 ## Prerequisites
 
@@ -63,13 +64,15 @@ Authenticate Docker with the NGC registry:
 docker login nvcr.io --username='$oauthtoken' --password="$NGC_API_KEY"
 ```
 
-## Parakeet ASR NIM Setup
+## Parakeet 0.6B ASR NIM Setup
 
 ### Model Information
 
-- **Model**: NVIDIA Parakeet 1.1B RNNT Multilingual ASR
-- **Container**: `nvcr.io/nim/nvidia/parakeet-1-1b-rnnt-multilingual:latest`
+- **Model**: NVIDIA Parakeet 0.6B CTC ASR
+- **Container**: `nvcr.io/nim/nvidia/parakeet-ctc-0.6b-asr:latest`
 - **Purpose**: Converts speech audio to text for the Mercury interface
+- **VRAM Usage**: ~2-4GB
+- **Mode**: Offline transcription (non-streaming)
 - **Ports**: 
   - HTTP: 9000
   - gRPC: 50051 (used by Mercury)
@@ -77,30 +80,60 @@ docker login nvcr.io --username='$oauthtoken' --password="$NGC_API_KEY"
 ### Running the Container
 
 ```bash
-docker run -d --name=parakeet-1-1b-rnnt-multilingual \
-   --runtime=nvidia \
+docker run -d --rm --name=parakeet-asr-0.6b \
+   --gpus all \
    --shm-size=8GB \
    -e NGC_API_KEY="$NGC_API_KEY" \
    -e NIM_HTTP_API_PORT=9000 \
    -e NIM_GRPC_API_PORT=50051 \
    -p 9000:9000 \
    -p 50051:50051 \
-   -e NIM_TAGS_SELECTOR=mode=str \
-   -v "$HOME/nim_cache:/home/nvs/.cache/nim" \
-   nvcr.io/nim/nvidia/parakeet-1-1b-rnnt-multilingual:latest
+   nvcr.io/nim/nvidia/parakeet-ctc-0.6b-asr:latest
 ```
+
+## Magpie TTS NIM Setup (Optional)
+
+### Model Information
+
+- **Model**: NVIDIA Magpie TTS Multilingual
+- **Container**: `nvcr.io/nim/nvidia/magpie-tts-multilingual:latest`
+- **Purpose**: Converts text responses to speech audio
+- **VRAM Usage**: ~4-6GB
+- **Voices**: 40+ voices in EN-US, ES-US, FR-FR with emotion variants
+- **Ports**: 
+  - HTTP: 9001
+  - gRPC: 50052 (used by Mercury)
+
+### Running the Container
+
+```bash
+docker run -d --rm --name=magpie-tts-multilingual \
+   --gpus all \
+   --shm-size=8GB \
+   -e NGC_API_KEY="$NGC_API_KEY" \
+   -e NIM_HTTP_API_PORT=9001 \
+   -e NIM_GRPC_API_PORT=50052 \
+   -p 9001:9001 \
+   -p 50052:50052 \
+   nvcr.io/nim/nvidia/magpie-tts-multilingual:latest
+```
+
+**Note**: Magpie TTS initialization can take several minutes for model warmup.
 
 ### Checking Container Status
 
 ```bash
-# Check if container is running
+# Check if containers are running
 docker ps --filter "name=parakeet"
+docker ps --filter "name=magpie"
 
 # View logs
-docker logs parakeet-1-1b-rnnt-multilingual
+docker logs parakeet-asr-0.6b
+docker logs magpie-tts-multilingual
 
 # Follow logs in real-time
-docker logs -f parakeet-1-1b-rnnt-multilingual
+docker logs -f parakeet-asr-0.6b
+docker logs -f magpie-tts-multilingual
 ```
 
 ## Known Issues and Troubleshooting

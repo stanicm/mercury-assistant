@@ -78,11 +78,10 @@ app.post('/api/transcribe-audio', upload.single('audio'), async (req, res) => {
     console.log('Audio converted to WAV format');
     console.log('Starting transcription...');
     
-    // Transcribe the converted audio
+    // Transcribe the converted audio using Parakeet 0.6B ASR (offline mode)
     const transcribeProcess = spawn('python', [
-      '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file.py',
+      '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file_offline.py',
       '--server', 'localhost:50051',
-      '--language-code', 'en-US',
       '--input-file', outputWavFile
     ]);
     
@@ -118,9 +117,15 @@ app.post('/api/transcribe-audio', upload.single('audio'), async (req, res) => {
         });
       }
       
-      // Process transcription output
-      let transcription = transcriptionData.trim();
-      transcription = transcription.replace(/##\s*/g, '');
+      // Process transcription output - extract "Final transcript:" line from offline script
+      let transcription = '';
+      const lines = transcriptionData.trim().split('\n');
+      for (const line of lines) {
+        if (line.startsWith('Final transcript:')) {
+          transcription = line.replace('Final transcript:', '').trim();
+          break;
+        }
+      }
       
       if (!transcription || transcription.length === 0) {
         console.warn('Empty transcription received');
@@ -160,12 +165,10 @@ app.post('/api/stop-recording', (req, res) => {
       console.log('Starting transcription for file:', outputFilePath);
       
       // Run the transcription script with the correct absolute path
-      // For local Parakeet ASR, use: '--server', 'localhost:50051'
-      // For cloud ASR, use: '--server', 'grpc.nvcf.nvidia.com:443', '--use-ssl', with metadata
+      // Using Parakeet 0.6B ASR on port 9000/50051 (offline mode)
       const transcribeProcess = spawn('python', [
-        '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file.py',
-        '--server', 'localhost:50051',  // Local Parakeet ASR server
-        '--language-code', 'en-US',
+        '/home/milos/mercury-assistant/mercury_interface/riva_python_client/scripts/asr/transcribe_file_offline.py',
+        '--server', 'localhost:50051',  // Local Parakeet 0.6B ASR server
         '--input-file', outputFilePath
       ]);
       
@@ -196,11 +199,15 @@ app.post('/api/stop-recording', (req, res) => {
           });
         }
         
-        // Extract the transcription text from the output
-        let transcription = transcriptionData.trim();
-        
-        // Remove the "# #" prefix if present
-        transcription = transcription.replace(/##\s*/g, '');
+        // Extract the transcription text from the offline script output
+        let transcription = '';
+        const lines = transcriptionData.trim().split('\n');
+        for (const line of lines) {
+          if (line.startsWith('Final transcript:')) {
+            transcription = line.replace('Final transcript:', '').trim();
+            break;
+          }
+        }
         
         console.log(`Final transcription after processing: "${transcription}"`);
         
@@ -584,12 +591,12 @@ app.post('/api/tts', async (req, res) => {
             // Construct the path to the TTS script
             const scriptPath = path.join(__dirname, 'riva_python_client/scripts/tts/talk.py');
             
-            // Spawn the TTS process for this chunk
+            // Spawn the TTS process for this chunk using Magpie TTS on port 50052
             const ttsProcess = spawn('python3', [
                 scriptPath,
-                '--server', '0.0.0.0:50051',
+                '--server', 'localhost:50052',
                 '--language-code', 'en-US',
-                '--voice', voice || 'Magpie-Multilingual.ES-US.Diego.Happy',
+                '--voice', voice || 'Magpie-Multilingual.EN-US.Diego.Happy',
                 '--text', chunk,
                 '-o', tempFile,
                 '--encoding', 'LINEAR_PCM',
