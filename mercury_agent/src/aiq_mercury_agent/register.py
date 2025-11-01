@@ -62,6 +62,14 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+# Global storage for reasoning traces (temporary buffer)
+# This will store the last reasoning output that can be exposed to UI
+reasoning_buffer = {
+    'last_reasoning': None,
+    'timestamp': None,
+    'query': None
+}
+
 # Add a custom formatter for color-coded output
 class ColoredFormatter(logging.Formatter):
     def format(self, record):
@@ -303,13 +311,102 @@ Classification:"""  # noqa: E501
         
         if "retrieve" in worker_choice.lower():
             logger.info("Processing with RAG agent", extra={'agent_type': 'retrieve'})
-            out = (await rag_tool.ainvoke(query))
-            output = out
+            raw_output = (await rag_tool.ainvoke(query))
             logger.debug("RAG tool response received")
+            
+            # Extract reasoning and clean answer from RAG
+            reasoning = None
+            clean_answer = raw_output
+            
+            # Check for reasoning markers (</think>, <think>, or obvious reasoning patterns)
+            if '</think>' in raw_output:
+                # Extract everything before </think> as reasoning
+                parts = raw_output.split('</think>')
+                reasoning = parts[0].replace('<think>', '').strip()
+                clean_answer = parts[1].strip() if len(parts) > 1 else raw_output
+                print(f"📝 [RAG] Extracted reasoning: {len(reasoning)} chars")
+                print(f"✨ [RAG] Clean answer: {len(clean_answer)} chars")
+            elif raw_output.startswith('Okay,') or raw_output.startswith('Let me') or 'I need to' in raw_output[:100]:
+                # Model is outputting reasoning without explicit tags
+                lines = raw_output.split('\n\n')
+                reasoning_lines = []
+                content_lines = []
+                found_content = False
+                
+                for line in lines:
+                    line_lower = line.lower().strip()
+                    # Check if this looks like reasoning (meta-commentary)
+                    if not found_content and any(marker in line_lower[:50] for marker in 
+                        ['okay,', 'let me', 'i need to', 'first,', 'i should', 'wait,', 'the user']):
+                        reasoning_lines.append(line)
+                    else:
+                        found_content = True
+                        content_lines.append(line)
+                
+                if reasoning_lines and content_lines:
+                    reasoning = '\n\n'.join(reasoning_lines).strip()
+                    clean_answer = '\n\n'.join(content_lines).strip()
+                    print(f"📝 [RAG] Extracted reasoning (heuristic): {len(reasoning)} chars")
+                    print(f"✨ [RAG] Clean answer: {len(clean_answer)} chars")
+            
+            # Store reasoning in global buffer if found
+            if reasoning:
+                import datetime
+                reasoning_buffer['last_reasoning'] = reasoning
+                reasoning_buffer['timestamp'] = datetime.datetime.now().isoformat()
+                reasoning_buffer['query'] = query
+                logger.info("💭 [RAG] Reasoning stored in buffer (%d chars)", len(reasoning))
+            
+            output = clean_answer
         elif "general" in worker_choice.lower():
             logger.info("Processing with Chitchat agent", extra={'agent_type': 'general'})
-            output = (await chitchat_agent.ainvoke(query))
+            raw_output = (await chitchat_agent.ainvoke(query))
             logger.debug("Chitchat response received")
+            
+            # Extract reasoning and clean answer from chitchat
+            reasoning = None
+            clean_answer = raw_output
+            
+            # Check for reasoning markers (</think>, <think>, or obvious reasoning patterns)
+            if '</think>' in raw_output:
+                # Extract everything before </think> as reasoning
+                parts = raw_output.split('</think>')
+                reasoning = parts[0].replace('<think>', '').strip()
+                clean_answer = parts[1].strip() if len(parts) > 1 else raw_output
+                print(f"📝 [Chitchat] Extracted reasoning: {len(reasoning)} chars")
+                print(f"✨ [Chitchat] Clean answer: {len(clean_answer)} chars")
+            elif raw_output.startswith('Okay,') or raw_output.startswith('Let me') or 'I need to' in raw_output[:100]:
+                # Model is outputting reasoning without explicit tags
+                lines = raw_output.split('\n\n')
+                reasoning_lines = []
+                content_lines = []
+                found_content = False
+                
+                for line in lines:
+                    line_lower = line.lower().strip()
+                    # Check if this looks like reasoning (meta-commentary)
+                    if not found_content and any(marker in line_lower[:50] for marker in 
+                        ['okay,', 'let me', 'i need to', 'first,', 'i should', 'wait,', 'the user']):
+                        reasoning_lines.append(line)
+                    else:
+                        found_content = True
+                        content_lines.append(line)
+                
+                if reasoning_lines and content_lines:
+                    reasoning = '\n\n'.join(reasoning_lines).strip()
+                    clean_answer = '\n\n'.join(content_lines).strip()
+                    print(f"📝 [Chitchat] Extracted reasoning (heuristic): {len(reasoning)} chars")
+                    print(f"✨ [Chitchat] Clean answer: {len(clean_answer)} chars")
+            
+            # Store reasoning in global buffer if found
+            if reasoning:
+                import datetime
+                reasoning_buffer['last_reasoning'] = reasoning
+                reasoning_buffer['timestamp'] = datetime.datetime.now().isoformat()
+                reasoning_buffer['query'] = query
+                logger.info("💭 [Chitchat] Reasoning stored in buffer (%d chars)", len(reasoning))
+            
+            output = clean_answer
         elif 'research' in worker_choice.lower():
             logger.info("Processing with Research agent", extra={'agent_type': 'research'})
             print(f"\n========== RESEARCH AGENT DEBUG ==========")
@@ -411,17 +508,61 @@ Classification:"""  # noqa: E501
                     print(f"14. Final summary_text: '{summary_text}'")
                     print(f"========== END DEBUG ==========\n")
 
-                    # Log the word count for monitoring
-                    word_count = len(summary_text.split())
-                    logger.info("[SUMMARIZE] Generated summary length: %d words", word_count)
-                    logger.info("[SUMMARIZE] Summary text: %s", summary_text[:500])
+                    # Extract reasoning and clean answer
+                    reasoning = None
+                    clean_answer = summary_text
+                    
+                    # Check for reasoning markers (</think>, <think>, or obvious reasoning patterns)
+                    if '</think>' in summary_text:
+                        # Extract everything before </think> as reasoning
+                        parts = summary_text.split('</think>')
+                        reasoning = parts[0].replace('<think>', '').strip()
+                        clean_answer = parts[1].strip() if len(parts) > 1 else summary_text
+                        print(f"📝 Extracted reasoning: {len(reasoning)} chars")
+                        print(f"✨ Clean answer: {len(clean_answer)} chars")
+                    elif summary_text.startswith('Okay,') or summary_text.startswith('Let me') or 'I need to' in summary_text[:100]:
+                        # Model is outputting reasoning without explicit tags
+                        # Try to find where actual content starts (after reasoning paragraphs)
+                        lines = summary_text.split('\n\n')
+                        reasoning_lines = []
+                        content_lines = []
+                        found_content = False
+                        
+                        for line in lines:
+                            line_lower = line.lower().strip()
+                            # Check if this looks like reasoning (meta-commentary)
+                            if not found_content and any(marker in line_lower[:50] for marker in 
+                                ['okay,', 'let me', 'i need to', 'first,', 'i should', 'wait,', 'the user']):
+                                reasoning_lines.append(line)
+                            else:
+                                found_content = True
+                                content_lines.append(line)
+                        
+                        if reasoning_lines and content_lines:
+                            reasoning = '\n\n'.join(reasoning_lines).strip()
+                            clean_answer = '\n\n'.join(content_lines).strip()
+                            print(f"📝 Extracted reasoning (heuristic): {len(reasoning)} chars")
+                            print(f"✨ Clean answer: {len(clean_answer)} chars")
+                    
+                    # Store reasoning in global buffer if found
+                    if reasoning:
+                        import datetime
+                        reasoning_buffer['last_reasoning'] = reasoning
+                        reasoning_buffer['timestamp'] = datetime.datetime.now().isoformat()
+                        reasoning_buffer['query'] = query
+                        logger.info("💭 Reasoning stored in buffer (%d chars)", len(reasoning))
 
-                    # Return a dictionary with the required state fields
+                    # Log the word count for monitoring (using clean answer)
+                    word_count = len(clean_answer.split())
+                    logger.info("[SUMMARIZE] Generated summary length: %d words", word_count)
+                    logger.info("[SUMMARIZE] Summary text: %s", clean_answer[:500])
+
+                    # Return a dictionary with the required state fields (using clean answer)
                     return {
                         'input': query,
                         'chosen_worker_agent': worker_choice,
                         'chat_history': chat_hist,
-                        'final_output': summary_text
+                        'final_output': clean_answer
                     }
 
                 except Exception as e:
