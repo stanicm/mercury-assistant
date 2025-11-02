@@ -554,8 +554,9 @@ app.post('/api/tts', async (req, res) => {
         console.log('Last 100 characters:', text.substring(text.length - 100));
         console.log('=======================');
         
-        // Split text into chunks of maximum 1500 characters to account for Riva client overhead
-        const MAX_CHUNK_SIZE = 1500;
+            // Split text into chunks of maximum 1000 characters to stay under gRPC 4MB message limit
+            // (1474 chars generated 5MB, which exceeded the limit and caused silent failures)
+            const MAX_CHUNK_SIZE = 1000;
         const textChunks = [];
         let currentChunk = '';
         
@@ -576,12 +577,17 @@ app.post('/api/tts', async (req, res) => {
             textChunks.push(currentChunk.trim());
         }
         
+        console.log('=== TTS Chunking Debug ===');
         console.log(`Split text into ${textChunks.length} chunks`);
+        textChunks.forEach((chunk, idx) => {
+            console.log(`Chunk ${idx + 1}: ${chunk.length} chars - "${chunk.substring(0, 50)}..."`);
+        });
+        console.log('========================');
         
         // Process each chunk and combine the audio
         for (let i = 0; i < textChunks.length; i++) {
             const chunk = textChunks[i];
-            console.log(`Processing chunk ${i + 1}/${textChunks.length} (${chunk.length} characters)`);
+            console.log(`\n>>> Processing chunk ${i + 1}/${textChunks.length} (${chunk.length} characters)`);
             
             // Create a temporary file path for this chunk
             const tempFile = `/tmp/tts_${timestamp}_${i}.wav`;
@@ -596,7 +602,7 @@ app.post('/api/tts', async (req, res) => {
                 scriptPath,
                 '--server', 'localhost:50052',
                 '--language-code', 'en-US',
-                '--voice', voice || 'Magpie-Multilingual.EN-US.Diego.Happy',
+                '--voice', voice || 'Magpie-Multilingual.EN-US.Jason.Happy',
                 '--text', chunk,
                 '-o', tempFile,
                 '--encoding', 'LINEAR_PCM',
@@ -640,46 +646,69 @@ app.post('/api/tts', async (req, res) => {
 
             // Verify the file was created and has content
             if (!fs.existsSync(tempFile)) {
+                console.error(`❌ Chunk ${i + 1} FAILED: File not created`);
                 throw new Error('TTS output file was not created');
             }
             const stats = fs.statSync(tempFile);
             if (stats.size === 0) {
+                console.error(`❌ Chunk ${i + 1} FAILED: File is empty`);
                 throw new Error('TTS output file is empty');
             }
+            console.log(`✓ Chunk ${i + 1} SUCCESS: ${stats.size} bytes written to ${tempFile}`);
         }
+        
+        console.log('\n=== All chunks processed successfully ===');
 
         // Create a new WAV file with the combined audio
         const outputFile = `/tmp/tts_combined_${timestamp}.wav`;
         tempFiles.push(outputFile);
         
+        console.log('\n=== Sox Combination ===');
+        console.log('Files to combine:', tempFiles.slice(0, -1));
+        console.log('Output file:', outputFile);
+        console.log('Number of input files:', tempFiles.length - 1);
+        
         // Use sox to combine the WAV files
-        const soxProcess = spawn('sox', [
-            ...tempFiles.slice(0, -1), // All files except the output file
-            outputFile
-        ]);
+        const soxArgs = [...tempFiles.slice(0, -1), outputFile];
+        console.log('Sox command: sox', soxArgs.join(' '));
+        const soxProcess = spawn('sox', soxArgs);
+        
+        let soxStderr = '';
+        soxProcess.stderr.on('data', (data) => {
+            soxStderr += data.toString();
+            console.error('Sox stderr:', data.toString());
+        });
 
         await new Promise((resolve, reject) => {
             soxProcess.on('close', (code) => {
                 if (code === 0) {
+                    console.log('✓ Sox combination successful');
                     resolve();
                 } else {
-                    reject(new Error(`Sox process failed with code ${code}`));
+                    console.error(`❌ Sox failed with code ${code}`);
+                    console.error('Sox stderr output:', soxStderr);
+                    reject(new Error(`Sox process failed with code ${code}: ${soxStderr}`));
                 }
             });
         });
 
         // Verify the combined file exists and has content
         if (!fs.existsSync(outputFile)) {
+            console.error('❌ Combined audio file was NOT created');
             throw new Error('Combined audio file was not created');
         }
         const stats = fs.statSync(outputFile);
         if (stats.size === 0) {
+            console.error('❌ Combined audio file is EMPTY');
             throw new Error('Combined audio file is empty');
         }
+        
+        console.log(`✓ Combined audio file created: ${stats.size} bytes`);
 
         // Read the combined audio file
         const combinedAudio = fs.readFileSync(outputFile);
-        console.log('Combined audio size:', combinedAudio.length, 'bytes');
+        console.log('✓ Combined audio loaded:', combinedAudio.length, 'bytes');
+        console.log('=== TTS Generation Complete ===\n');
         
         // Set appropriate headers for audio streaming
         res.setHeader('Content-Type', 'audio/wav');
@@ -698,6 +727,7 @@ app.post('/api/tts', async (req, res) => {
         }
     } finally {
         // Clean up all temporary files
+        // NOTE: Comment out this section to preserve files for debugging
         tempFiles.forEach(file => {
             try {
                 if (fs.existsSync(file)) {
