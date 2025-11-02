@@ -4,17 +4,62 @@ requires = ["setuptools >= 64"]
 
 [project]
 name = "aiq_mercury_agent"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
+  # Core NAT dependencies
+  "nvidia-nat>=1.3.0",
+  "nvidia-nat-langchain>=1.3.0",
+  "nvidia-nat-llama-index>=1.3.0",
+  
+  # Existing dependencies
   "arxiv~=2.1.3",
   "colorama~=0.4.6",
   "markdown-it-py~=3.0",
   "nvidia-haystack==0.1.2",
   "wikipedia~=1.4.0",
+  
+  # HTTP client for RAG server
+  "httpx>=0.27.0",
+  
+  # Profiling and observability (optional extras)
+  "opentelemetry-api>=1.20.0",
+  "opentelemetry-sdk>=1.20.0",
 ]
 requires-python = ">=3.12"
-description = "Custom NVIDIA NAT Workflow"
+description = "Custom NVIDIA NAT Workflow with Enhanced Profiling and Observability"
 classifiers = ["Programming Language :: Python"]
+
+[project.optional-dependencies]
+# Observability integrations
+observability = [
+  "arize-phoenix>=4.0.0",  # Phoenix for LLM tracing
+  "weave>=0.50.0",         # W&B Weave for evaluation
+  "langfuse>=2.0.0",       # Langfuse for observability
+  "opentelemetry-exporter-otlp>=1.20.0",
+]
+
+# Evaluation tools
+evaluation = [
+  "ragas>=0.1.0",          # RAG evaluation metrics
+  "datasets>=2.14.0",      # Dataset handling
+  "pandas>=2.0.0",         # Data analysis
+]
+
+# Development tools
+dev = [
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+  "black>=23.0.0",
+  "ruff>=0.1.0",
+  "mypy>=1.5.0",
+]
+
+# All optional dependencies
+all = [
+  "aiq_mercury_agent[observability]",
+  "aiq_mercury_agent[evaluation]",
+  "aiq_mercury_agent[dev]",
+]
 
 [project.entry-points.'nat.components']
 aiq_mercury_agent = "aiq_mercury_agent.register"

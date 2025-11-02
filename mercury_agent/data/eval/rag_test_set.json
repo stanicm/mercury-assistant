@@ -1,0 +1,97 @@
+{
+  "metadata": {
+    "name": "Mercury RAG Evaluation Test Set",
+    "description": "Test cases for evaluating RAG retrieval and generation quality",
+    "version": "1.0",
+    "created": "2025-11-02",
+    "collection": "SPH"
+  },
+  "test_cases": [
+    {
+      "id": "rag_001",
+      "query": "What is Smoothed Particle Hydrodynamics?",
+      "expected_answer": "Smoothed Particle Hydrodynamics (SPH) is a computational method used for simulating fluid flows. It is a meshfree Lagrangian method where the fluid is represented by particles that carry properties such as mass, velocity, and energy.",
+      "ground_truth_contexts": [
+        "SPH is a meshfree particle method",
+        "It uses kernel functions for interpolation",
+        "Originally developed for astrophysical simulations"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["SPH", "particle", "fluid", "simulation"],
+        "should_not_contain": ["error", "unknown", "not found"]
+      }
+    },
+    {
+      "id": "rag_002",
+      "query": "How does kernel smoothing work in SPH?",
+      "expected_answer": "Kernel smoothing in SPH uses a smoothing kernel function to interpolate field values from neighboring particles. The kernel is a weighting function that gives more weight to nearby particles and less weight to distant particles.",
+      "ground_truth_contexts": [
+        "Kernel functions provide smooth interpolation",
+        "Common kernels include cubic spline and Gaussian",
+        "Smoothing length determines the influence radius"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["kernel", "smoothing", "interpolation", "particles"],
+        "should_not_contain": ["error", "unknown"]
+      }
+    },
+    {
+      "id": "rag_003",
+      "query": "What are the advantages of SPH over grid-based methods?",
+      "expected_answer": "SPH has several advantages: it naturally handles free surfaces and interfaces, can easily track material interfaces, handles large deformations well, and is adaptive in resolution since particles can move freely.",
+      "ground_truth_contexts": [
+        "Meshfree nature allows for natural handling of free surfaces",
+        "Lagrangian framework tracks material properties",
+        "Adaptive resolution based on particle distribution"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["advantage", "free surface", "adaptive", "meshfree"],
+        "should_not_contain": ["error", "disadvantage only"]
+      }
+    },
+    {
+      "id": "rag_004",
+      "query": "What are common applications of SPH?",
+      "expected_answer": "SPH is commonly used for astrophysics simulations, fluid dynamics, coastal engineering, impact and explosion modeling, and computer graphics for visual effects.",
+      "ground_truth_contexts": [
+        "Astrophysical simulations of star formation",
+        "Coastal and marine engineering applications",
+        "Industrial applications in manufacturing",
+        "Visual effects in movies and games"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["application", "simulation", "fluid"],
+        "should_not_contain": ["error", "not applicable"]
+      }
+    },
+    {
+      "id": "rag_005",
+      "query": "What is the time complexity of SPH neighbor search?",
+      "expected_answer": "The time complexity of SPH neighbor search depends on the algorithm used. With spatial data structures like cell lists or tree structures, it can be reduced to O(N log N) or even O(N) for well-distributed particles.",
+      "ground_truth_contexts": [
+        "Brute force neighbor search is O(N^2)",
+        "Cell lists and linked lists improve to O(N)",
+        "Tree structures like k-d trees provide O(N log N)"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["complexity", "neighbor", "search"],
+        "should_not_contain": ["error", "unknown"]
+      }
+    },
+    {
+      "id": "rag_006",
+      "query": "Explain the continuity equation in SPH",
+      "expected_answer": "The continuity equation in SPH represents conservation of mass and is discretized using particle approximations. It relates the rate of density change to the velocity field and can be formulated in multiple ways for numerical stability.",
+      "ground_truth_contexts": [
+        "Conservation of mass principle",
+        "Density summation vs continuity equation formulation",
+        "Time integration of density field"
+      ],
+      "evaluation_criteria": {
+        "should_contain": ["continuity", "mass", "density", "conservation"],
+        "should_not_contain": ["error", "unknown"]
+      }
+    }
+  ]
+}
+

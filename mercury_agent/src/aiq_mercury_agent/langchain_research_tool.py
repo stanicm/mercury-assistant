@@ -141,6 +141,13 @@ async def langchain_research(tool_config: LangChainResearchConfig, builder: Buil
             print(f"Wikipedia content length: {len(content)} chars")
             
             if content:
+                # Truncate content to fit within model's context window
+                # 4096 token limit = ~16000 chars, leaving ~12000 for content
+                MAX_CHARS = 12000
+                if len(content) > MAX_CHARS:
+                    content = content[:MAX_CHARS] + "... [Content truncated due to length]"
+                    print(f"Content truncated to {MAX_CHARS} chars")
+                
                 result = f"{content}\n\nSource: {url}"
                 print(f"Returning {len(result)} chars total")
                 print(f"--- End Wikipedia Tool ---\n")

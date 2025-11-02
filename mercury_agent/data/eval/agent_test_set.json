@@ -1,0 +1,131 @@
+{
+  "metadata": {
+    "name": "Mercury Agent Workflow Evaluation Test Set",
+    "description": "Test cases for evaluating agent routing and tool selection accuracy",
+    "version": "1.0",
+    "created": "2025-11-02"
+  },
+  "test_cases": [
+    {
+      "id": "agent_001",
+      "query": "Tell me about Albert Einstein",
+      "expected_agent": "research",
+      "expected_tool": "wikipedia_search",
+      "evaluation_criteria": {
+        "should_contain": ["physicist", "relativity", "Einstein"],
+        "should_not_contain": ["error", "sorry", "I don't know"],
+        "min_length": 100,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_002",
+      "query": "What is SPH?",
+      "expected_agent": "retrieve",
+      "expected_tool": "nvbp_rag",
+      "evaluation_criteria": {
+        "should_contain": ["Smoothed Particle Hydrodynamics", "SPH", "particle"],
+        "should_not_contain": ["error", "not found"],
+        "min_length": 50,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_003",
+      "query": "Hello, how are you?",
+      "expected_agent": "general",
+      "expected_tool": "haystack_chitchat_agent",
+      "evaluation_criteria": {
+        "should_contain": ["hello", "hi", "good", "well"],
+        "should_not_contain": ["error"],
+        "min_length": 10,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_004",
+      "query": "Who invented the telephone?",
+      "expected_agent": "research",
+      "expected_tool": "wikipedia_search",
+      "evaluation_criteria": {
+        "should_contain": ["Bell", "telephone", "inventor"],
+        "should_not_contain": ["error", "unknown"],
+        "min_length": 50,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_005",
+      "query": "Explain kernel functions in SPH simulations",
+      "expected_agent": "retrieve",
+      "expected_tool": "nvbp_rag",
+      "evaluation_criteria": {
+        "should_contain": ["kernel", "SPH", "function", "smoothing"],
+        "should_not_contain": ["error"],
+        "min_length": 50,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_006",
+      "query": "What's the weather like today?",
+      "expected_agent": "general",
+      "expected_tool": "haystack_chitchat_agent",
+      "evaluation_criteria": {
+        "should_contain": [],
+        "should_not_contain": ["error"],
+        "min_length": 10,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_007",
+      "query": "Tell me about the history of Python programming language",
+      "expected_agent": "research",
+      "expected_tool": "wikipedia_search",
+      "evaluation_criteria": {
+        "should_contain": ["Python", "programming", "Guido"],
+        "should_not_contain": ["error"],
+        "min_length": 100,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_008",
+      "query": "What are the boundary conditions in SPH?",
+      "expected_agent": "retrieve",
+      "expected_tool": "nvbp_rag",
+      "evaluation_criteria": {
+        "should_contain": ["boundary", "SPH", "condition"],
+        "should_not_contain": ["error", "not found"],
+        "min_length": 50,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_009",
+      "query": "Can you tell me a joke?",
+      "expected_agent": "general",
+      "expected_tool": "haystack_chitchat_agent",
+      "evaluation_criteria": {
+        "should_contain": [],
+        "should_not_contain": ["error"],
+        "min_length": 10,
+        "task_success": true
+      }
+    },
+    {
+      "id": "agent_010",
+      "query": "What is quantum mechanics?",
+      "expected_agent": "research",
+      "expected_tool": "wikipedia_search",
+      "evaluation_criteria": {
+        "should_contain": ["quantum", "physics", "mechanics"],
+        "should_not_contain": ["error"],
+        "min_length": 100,
+        "task_success": true
+      }
+    }
+  ]
+}
+
