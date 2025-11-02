@@ -36,6 +36,8 @@ Mercury now supports complete speech-to-speech interaction with locally deployed
 - Transcription output parsing for offline script format
 - TTS endpoint configured for Magpie on port 50052
 - Improved error handling for audio processing
+- **Fixed**: TTS audio truncation for long responses by reducing chunk size to avoid gRPC 4MB message limit
+- Added comprehensive debugging logs for TTS chunking and sox audio combination
 
 ## 📋 Complete Feature Set
 
@@ -74,6 +76,11 @@ Mercury now supports complete speech-to-speech interaction with locally deployed
 - Updated transcription pipeline to use offline script
 - Modified TTS configuration to use port 50052
 - Changed default TTS voice to Diego (Happy)
+
+### Fixed
+- TTS audio truncation for long responses (reduced chunk size from 1500 to 1000 chars)
+- gRPC 4MB message limit causing silent failures in TTS generation
+- First paragraph of long responses being cut off in audio output
 
 ### Documentation
 - Updated README.md with Parakeet 0.6B and Magpie TTS setup
