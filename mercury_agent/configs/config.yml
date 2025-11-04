@@ -36,10 +36,10 @@ functions:
   # Haystack chitchat agent configuration
   haystack_chitchat_agent:
     _type: haystack_chitchat_agent
-    # Local Nemotron Nano 9B NIM
-    llm_name: nvidia/nvidia-nemotron-nano-9b-v2
-    model_name: nvidia/nvidia-nemotron-nano-9b-v2
-    base_url: "http://localhost:8000/v1"
+    # Local Nemotron 49B FP4 NIM
+    llm_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    base_url: "http://localhost:8999/v1"
     timeout: 90                        # Request timeout in seconds
 
 # Language Model configurations
@@ -47,9 +47,9 @@ llms:
   # Primary LLM for general tasks
   nim_llm:
     _type: nim
-    # Local Nemotron Nano 9B NIM
-    model_name: nvidia/nvidia-nemotron-nano-9b-v2
-    base_url: "http://localhost:8000/v1"
+    # Local Nemotron 49B FP4 NIM
+    model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    base_url: "http://localhost:8999/v1"
     temperature: 0.0                   # Lower temperature for more focused responses
     max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds
@@ -57,9 +57,9 @@ llms:
   # LLM for chitchat with higher temperature for more creative responses
   chitchat_llm:
     _type: nim
-    # Local Nemotron Nano 9B NIM
-    model_name: nvidia/nvidia-nemotron-nano-9b-v2
-    base_url: "http://localhost:8000/v1"
+    # Local Nemotron 49B FP4 NIM
+    model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    base_url: "http://localhost:8999/v1"
     temperature: 0.7                   # Higher temperature for more creative responses
     max_tokens: 1024                    # Maximum response length
     timeout: 180                       # Request timeout in seconds

@@ -1,23 +1,36 @@
-# Nemotron Nano 9B Deployment Guide
+# Nemotron Model Deployment Guide
 
-This guide covers deploying NVIDIA's Nemotron Nano 9B model locally using Docker for use with Mercury AI Assistant.
+This guide covers deploying NVIDIA's Nemotron models locally using Docker for use with Mercury AI Assistant.
 
-## Overview
+## Available Models
 
-Nemotron Nano 9B is a powerful 9-billion parameter language model optimized for:
+### Nemotron Nano 9B
+A powerful 9-billion parameter language model optimized for:
 - Fast inference
 - High-quality text generation
 - Multi-agent workflows
 - Reasoning capabilities
+
+### Nemotron 49B (Llama 3.3 Super)
+A flagship 49-billion parameter model with enhanced capabilities:
+- Advanced reasoning with chain-of-thought
+- Superior instruction following
+- Extended context support (up to 128K)
+- Available in FP4 quantization for reduced memory footprint
 
 ## Prerequisites
 
 - NVIDIA GPU with CUDA support
 - Docker with NVIDIA Container Toolkit installed
 - NGC API key
-- Minimum 65GB VRAM (memory-optimized) or 88GB (standard)
+- **For Nano 9B**: Minimum 65GB VRAM (memory-optimized) or 88GB (standard)
+- **For 49B FP4**: Minimum 66GB VRAM (memory-optimized) or 91GB (standard)
 
 ## Deployment Options
+
+---
+
+# Nemotron Nano 9B Deployment
 
 ### Standard Deployment (~88GB VRAM)
 
@@ -224,9 +237,111 @@ For maximum throughput (requires more VRAM):
 -e NIM_KVCACHE_PERCENT=0.8
 ```
 
+---
+
+# Nemotron 49B (Llama 3.3 Super) Deployment
+
+## Standard Deployment (~91GB VRAM)
+
+Basic FP4 quantized deployment:
+
+```bash
+export NGC_API_KEY=<your-ngc-api-key>
+export LOCAL_NIM_CACHE=~/.cache/nim
+export NIM_MODEL_PROFILE='496a3bcf32f7c7e81e59b1c17395d49b6c412dcb9e94d1bd4675c7ab61ed4b8c'
+export NIM_MANIFEST_ALLOW_UNSAFE=1
+
+docker run -d --name nemotron-49b-fp4 \
+    --gpus all \
+    --shm-size=16GB \
+    -e NGC_API_KEY \
+    -e NIM_MANIFEST_ALLOW_UNSAFE \
+    -e NIM_MODEL_PROFILE \
+    -v "$LOCAL_NIM_CACHE:/opt/nim/.cache" \
+    -u $(id -u) \
+    -p 8999:8000 \
+    nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:latest
+```
+
+**Characteristics:**
+- Uses ~91GB VRAM
+- Maximum performance with FP4 quantization
+- Full 128K context window support
+- Suitable for GPUs with >95GB VRAM
+
+## Memory-Optimized Deployment (~66GB VRAM) ⭐ Recommended
+
+Optimized for memory-constrained GPUs with 65K context:
+
+```bash
+export NGC_API_KEY=<your-ngc-api-key>
+export LOCAL_NIM_CACHE=~/.cache/nim
+export NIM_MODEL_PROFILE='496a3bcf32f7c7e81e59b1c17395d49b6c412dcb9e94d1bd4675c7ab61ed4b8c'
+export NIM_MANIFEST_ALLOW_UNSAFE=1
+
+docker run -d --name nemotron-49b-fp4-optimized \
+    --gpus all \
+    --shm-size=16GB \
+    -e NGC_API_KEY \
+    -e NIM_MANIFEST_ALLOW_UNSAFE \
+    -e NIM_MODEL_PROFILE \
+    -e NIM_MAX_BATCH_SIZE=1 \
+    -e NIM_MAX_MODEL_LEN=65000 \
+    -e NIM_KVCACHE_PERCENT=0.5 \
+    -e NIM_LOW_MEMORY_MODE=1 \
+    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.5 \
+    -v "$LOCAL_NIM_CACHE:/opt/nim/.cache" \
+    -u $(id -u) \
+    -p 8999:8000 \
+    nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:latest
+```
+
+**Characteristics:**
+- Uses ~66GB VRAM (saves 25GB!)
+- 65K context window (still very large)
+- FP4 quantized for efficiency
+- Minimal performance impact
+- **Port**: 8999 (maps to container port 8000)
+
+### 49B Memory Optimization Parameters
+
+The 49B model benefits from the same optimization parameters as the 9B model, but with adjusted values:
+
+- **NIM_MAX_MODEL_LEN=65000**: Provides 65K token context (vs 128K default)
+  - Still sufficient for most use cases
+  - Significant VRAM savings
+  
+- **NIM_KVCACHE_PERCENT=0.5**: Uses 50% of available memory for KV cache
+  - More aggressive than 9B (0.6) due to larger model size
+  - Balances performance with memory efficiency
+
+- **NIM_KV_CACHE_HOST_MEM_FRACTION=0.5**: Offloads 50% of KV cache to system RAM
+  - Critical for 49B model with large context
+  - Requires adequate system RAM (32GB+ recommended)
+
+### Testing the 49B Model
+
+```bash
+# Test health
+curl http://localhost:8999/v1/health/ready
+
+# Test chat completion
+curl -X POST http://localhost:8999/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    "messages": [{"role":"user", "content":"What is 2+2?"}],
+    "max_tokens": 100
+  }'
+```
+
+---
+
 ## Integration with Mercury
 
-Mercury Agent automatically uses Nemotron Nano 9B when configured in `mercury_agent/configs/config.yml`:
+Mercury Agent can use either Nemotron model when configured in `mercury_agent/configs/config.yml`:
+
+### For Nemotron Nano 9B:
 
 ```yaml
 llms:
@@ -238,9 +353,40 @@ llms:
     max_tokens: 1024
 ```
 
+### For Nemotron 49B:
+
+```yaml
+llms:
+  nim_llm:
+    _type: nim
+    model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    base_url: "http://localhost:8999/v1"
+    temperature: 0.0
+    max_tokens: 1024
+  chitchat_llm:
+    _type: nim
+    model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
+    base_url: "http://localhost:8999/v1"
+    temperature: 0.7
+    max_tokens: 1024
+```
+
+## Model Comparison
+
+| Feature | Nemotron Nano 9B | Nemotron 49B FP4 |
+|---------|------------------|------------------|
+| **Parameters** | 9B | 49B |
+| **VRAM (Standard)** | ~88GB | ~91GB |
+| **VRAM (Optimized)** | ~65GB | ~66GB |
+| **Context Window** | 4K-8K | 65K-128K |
+| **Port** | 8000 | 8999 |
+| **Best For** | Fast inference, multi-agent | Advanced reasoning, long context |
+| **Quantization** | FP16 | FP4 |
+
 ## Resources
 
-- **Model Page**: https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2
+- **Nemotron Nano 9B**: https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2
+- **Nemotron 49B**: https://build.nvidia.com/nvidia/llama-3.3-nemotron-super-49b-v1.5
 - **NIM Documentation**: https://docs.nvidia.com/nim/
 - **Mercury Documentation**: [../README.md](../README.md)
 
@@ -249,4 +395,5 @@ llms:
 | Version | Date | Notes |
 |---------|------|-------|
 | v1.0 | Nov 1, 2025 | Initial deployment with memory optimization parameters |
+| v2.0 | Nov 4, 2025 | Added Nemotron 49B FP4 deployment with memory optimization |
 

@@ -250,9 +250,13 @@ app.post('/api/chat', async (req, res) => {
   const { model, message } = req.body;
   console.log(`Model: ${model}, Message: ${message}`);
   
+  // Default to mercury-agent if no model specified
+  const modelToCheck = model || 'mercury-agent';
+  console.log(`Using model: ${modelToCheck}`);
+  
   try {
     // NVIDIA-specific configuration
-    if (model.includes('llama-3.1-405b') || model.includes('meta/')) {
+    if (modelToCheck.includes('llama-3.1-405b') || modelToCheck.includes('meta/')) {
       if (!process.env.NVIDIA_API_KEY) {
         return res.status(500).json({ error: 'NVIDIA API key not configured' });
       }
@@ -263,7 +267,7 @@ app.post('/api/chat', async (req, res) => {
       modelToUse = 'nvdev/meta/llama-3.1-405b-instruct';
     }
     // NIM LLM configuration
-    else if (model.includes('nemotron')) {
+    else if (modelToCheck.includes('nemotron')) {
       if (!process.env.NVIDIA_API_KEY) {
         return res.status(500).json({ error: 'NVIDIA API key not configured' });
       }
@@ -274,7 +278,7 @@ app.post('/api/chat', async (req, res) => {
       modelToUse = 'nvdev/nvidia/llama-3.3-nemotron-super-49b-v1';
     }
     // NIM LLM configuration
-    else if (model === 'nim-llm') {
+    else if (modelToCheck === 'nim-llm') {
       openaiConfig = {
         apiKey: 'not-required',
         baseURL: 'http://0.0.0.0:8000',
@@ -282,27 +286,27 @@ app.post('/api/chat', async (req, res) => {
       modelToUse = 'meta/llama-3.1-8b-instruct';
     }
     // OpenAI configuration
-    else if (model.includes('gpt')) {
+    else if (modelToCheck.includes('gpt')) {
       if (!process.env.OPENAI_API_KEY) {
         return res.status(500).json({ error: 'OpenAI API key not configured' });
       }
       openaiConfig = {
         apiKey: process.env.OPENAI_API_KEY,
       };
-      modelToUse = model;
+      modelToUse = modelToCheck;
     }
     // Claude configuration
-    else if (model.includes('claude')) {
+    else if (modelToCheck.includes('claude')) {
       // This would need Anthropic's API client instead
       return res.status(501).json({ error: 'Claude API not yet implemented' });
     }
     // Custom endpoint
-    else if (model === 'custom') {
+    else if (modelToCheck === 'custom') {
       // Would need to get custom endpoint details from request
       return res.status(501).json({ error: 'Custom endpoint not yet implemented' });
     }
     // Mercury Agent configuration
-    else if (model === 'mercury-agent') {
+    else if (modelToCheck === 'mercury-agent') {
       if (!process.env.NVIDIA_API_KEY) {
         return res.status(500).json({ error: 'NVIDIA API key not configured' });
       }
@@ -445,7 +449,7 @@ app.post('/api/chat', async (req, res) => {
       "content": "Format your response using markdown. Use ### for main headers, ** for bold text, and proper list formatting with - for bullet points and 1. for numbered lists. Ensure nested lists are properly indented."
     };
 
-    if (model.includes('nemotron')) {
+    if (modelToCheck.includes('nemotron')) {
       let completionParams = {
         model: modelToUse,
         messages: [{"role":"system","content":"Give me thoughtful and rational input about the following subject:"}, {"role": "user", "content": message}],
@@ -646,7 +650,7 @@ app.post('/api/tts', async (req, res) => {
 
             // Verify the file was created and has content
             if (!fs.existsSync(tempFile)) {
-                console.error(`❌ Chunk ${i + 1} FAILED: File not created`);
+              console.error(`❌ Chunk ${i + 1} FAILED: File not created`);
                 throw new Error('TTS output file was not created');
             }
             const stats = fs.statSync(tempFile);
