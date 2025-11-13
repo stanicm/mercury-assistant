@@ -42,6 +42,16 @@ functions:
     base_url: "http://localhost:8999/v1"
     timeout: 90                        # Request timeout in seconds
 
+  # Text-to-Image generation tool configuration
+  text2image:
+    _type: text2image_tool
+    endpoint: "http://localhost:8000/v1/images/generations"  # Stable Diffusion 3.5 Large endpoint
+    output_dir: "/tmp/mercury_images"   # Directory to save generated images
+    default_height: 1024                # Default image height (768-1344)
+    default_width: 1024                 # Default image width (768-1344)
+    timeout: 60                         # Request timeout in seconds
+    profile: true                       # Enable profiling/telemetry
+
 # Language Model configurations
 llms:
   # Primary LLM for general tasks
@@ -84,8 +94,9 @@ embedders:
 # Main workflow configuration
 workflow:
   _type: aiq_mercury_agent/mercury_agent  # Workflow type
-  llm: nim_llm                            # Local Nemotron Nano 9B for all tasks
+  llm: nim_llm                            # Local Nemotron 49B FP4 for all tasks
   data_dir: ./mercury/README.md           # Data directory for RAG
   rag_tool: nvbp_rag                      # RAG tool to use
   research_tool: wikipedia_search         # Research tool to use
-  chitchat_agent: haystack_chitchat_agent # Chitchat agent to use 
+  chitchat_agent: haystack_chitchat_agent # Chitchat agent to use
+  image_tool: text2image                  # Text-to-image generation tool to use 

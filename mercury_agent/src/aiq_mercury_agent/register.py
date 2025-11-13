@@ -48,6 +48,7 @@ from nat.data_models.function import FunctionBaseConfig
 from . import haystack_agent  # noqa: F401, pylint: disable=unused-import
 from . import langchain_research_tool  # noqa: F401, pylint: disable=unused-import
 from . import nvbp_rag_tool  # noqa: F401, pylint: disable=unused-import
+from . import text2image_tool  # noqa: F401, pylint: disable=unused-import
 
 # Initialize colorama
 init()
@@ -80,6 +81,8 @@ class ColoredFormatter(logging.Formatter):
                 record.msg = f"{Fore.GREEN}[RAG AGENT]{Style.RESET_ALL} {record.msg}"
             elif record.agent_type == 'general':
                 record.msg = f"{Fore.YELLOW}[CHITCHAT AGENT]{Style.RESET_ALL} {record.msg}"
+            elif record.agent_type == 'image':
+                record.msg = f"{Fore.MAGENTA}[IMAGE AGENT]{Style.RESET_ALL} {record.msg}"
         return super().format(record)
 
 # Apply the colored formatter
@@ -99,12 +102,14 @@ class MercuryAgentWorkflowConfig(FunctionBaseConfig, name="mercury_agent"):
         research_tool: Reference to the research tool function
         rag_tool: Reference to the RAG tool function
         chitchat_agent: Reference to the chitchat agent function
+        image_tool: Reference to the text-to-image generation tool function
     """
     llm: LLMRef = "nim_llm"
     data_dir: str = "/home/coder/dev/ai-query-engine/aiq/mercury/data/"
     research_tool: FunctionRef
     rag_tool: FunctionRef
     chitchat_agent: FunctionRef
+    image_tool: FunctionRef
 
 
 @register_function(config_type=MercuryAgentWorkflowConfig, framework_wrappers=[LLMFrameworkEnum.LANGCHAIN])
@@ -155,17 +160,19 @@ async def mercury_agent_workflow(config: MercuryAgentWorkflowConfig, builder: Bu
     research_tool = await builder.get_tool(fn_name=config.research_tool, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
     rag_tool = await builder.get_tool(fn_name=config.rag_tool, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
     chitchat_agent = await builder.get_tool(fn_name=config.chitchat_agent, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
+    image_tool = await builder.get_tool(fn_name=config.image_tool, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
 
     chat_hist = ChatMessageHistory()
 
     # Define the routing prompt for classifying user queries
     router_prompt = """/no_think
 
-You are a classifier. Your ONLY job is to output ONE word: Research, Retrieve, or General.
+You are a classifier. Your ONLY job is to output ONE word: Research, Retrieve, Image, or General.
 
 Classification rules:
 - Research: Questions about people, places, history, science, or any factual topic
 - Retrieve: Questions about SPH (Smoothed Particle Hydrodynamics) only
+- Image: Requests to create, generate, draw, or make images, pictures, or visual art
 - General: Greetings, chitchat, math, or anything else
 
 User query: {input}
@@ -247,11 +254,13 @@ Classification:"""  # noqa: E501
                 chosen_agent = 'research'
             elif 'retrieve' in response_lower.split()[-10:]:
                 chosen_agent = 'retrieve'
+            elif 'image' in response_lower.split()[-10:]:
+                chosen_agent = 'image'
             else:
                 # If we can't find a clear match, try to get the last word
                 words = response_lower.split()
                 last_word = words[-1] if words else ''
-                if last_word in ['general', 'research', 'retrieve']:
+                if last_word in ['general', 'research', 'retrieve', 'image']:
                     chosen_agent = last_word
                 else:
                     # Default to general for chitchat if unclear
@@ -407,6 +416,14 @@ Classification:"""  # noqa: E501
                 logger.info("💭 [Chitchat] Reasoning stored in buffer (%d chars)", len(reasoning))
             
             output = clean_answer
+        elif 'image' in worker_choice.lower():
+            logger.info("Processing with Image Generation agent", extra={'agent_type': 'image'})
+            raw_output = (await image_tool.ainvoke(query))
+            logger.debug("Image tool response received")
+            
+            # Image tool returns metadata only (not image data)
+            # No reasoning extraction needed - just pass through the metadata
+            output = raw_output
         elif 'research' in worker_choice.lower():
             logger.info("Processing with Research agent", extra={'agent_type': 'research'})
             print(f"\n========== RESEARCH AGENT DEBUG ==========")
