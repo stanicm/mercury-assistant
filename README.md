@@ -229,36 +229,9 @@ Wait for the message: `{"status":"ready"}` when checking `http://localhost:9000/
 
 For more details: https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr
 
-#### Step 3: Deploy Nemotron LLM (Required for Mercury Agent)
+#### Step 3: Deploy Nemotron 49B FP4 LLM (Required for Mercury Agent)
 
-**Option A: Nemotron Nano 9B** (Lightweight, ~65-88GB VRAM)
-
-Standard deployment (~88GB VRAM):
-```bash
-docker run -d --rm --name=nemotron-nano-9b \
-    --gpus all \
-    --shm-size=16GB \
-    -e NGC_API_KEY \
-    -p 8000:8000 \
-    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
-```
-
-Memory-optimized deployment (~65GB VRAM):
-```bash
-docker run -d --rm --name=nemotron-nano-9b \
-    --gpus all \
-    --shm-size=16GB \
-    -e NGC_API_KEY \
-    -e NIM_MAX_BATCH_SIZE=1 \
-    -e NIM_MAX_MODEL_LEN=4096 \
-    -e NIM_KVCACHE_PERCENT=0.6 \
-    -e NIM_LOW_MEMORY_MODE=1 \
-    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.6 \
-    -p 8000:8000 \
-    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
-```
-
-**Option B: Nemotron 49B FP4** ⭐ Flagship Model (~66-91GB VRAM)
+⭐ **Flagship Model** (~66-91GB VRAM)
 
 Memory-optimized deployment (~66GB VRAM) - Recommended:
 ```bash
@@ -283,18 +256,45 @@ docker run -d --name nemotron-49b-fp4 \
     nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:latest
 ```
 
-**Note:** If using Nemotron 49B (port 8999), update Mercury Agent config:
-```bash
-# Edit mercury_agent/configs/config.yml
-# Change all base_url from http://localhost:8000/v1 to http://localhost:8999/v1
-# Change all model_name to nvidia/llama-3.3-nemotron-super-49b-v1.5
-```
+**Mercury Agent configuration** (already set in `mercury_agent/configs/config.yml`):
+- Port: 8999
+- Model: `nvidia/llama-3.3-nemotron-super-49b-v1.5`
 
 **For detailed deployment options, see:**
-- [documentation/NEMOTRON_DEPLOYMENT.md](./documentation/NEMOTRON_DEPLOYMENT.md) - Complete guide with both 9B and 49B models
-- Model comparison, memory optimization strategies, and troubleshooting
+- [documentation/NEMOTRON_DEPLOYMENT.md](./documentation/NEMOTRON_DEPLOYMENT.md) - Complete deployment guide
+- Memory optimization strategies, troubleshooting, and multi-model deployment
 
-#### Step 4: Deploy Magpie TTS NIM (Optional)
+#### Step 4: Deploy Stable Diffusion 3.5 Large NIM (Optional)
+
+For text-to-image generation capabilities (~30GB VRAM):
+
+```bash
+export HF_TOKEN="your-huggingface-token"
+export LOCAL_NIM_CACHE=~/.cache/nim
+mkdir -p "$LOCAL_NIM_CACHE"
+chmod 777 "$LOCAL_NIM_CACHE"
+
+docker run -d --name=stable-diffusion-3.5-large \
+    --runtime=nvidia \
+    --gpus='"device=0"' \
+    -e NGC_API_KEY=$NGC_API_KEY \
+    -e HF_TOKEN=$HF_TOKEN \
+    -p 8000:8000 \
+    -v "$LOCAL_NIM_CACHE:/opt/nim/.cache/" \
+    nvcr.io/nim/stabilityai/stable-diffusion-3.5-large:latest
+```
+
+Wait for initialization (may take several minutes). Check status at `http://localhost:8000/v1/health/ready`
+
+**Features:**
+- High-quality image generation (1024x1024)
+- Fast inference (~5-10 seconds per image)
+- Creative and artistic output
+- Text-to-image from natural language prompts
+
+For more details: [documentation/TEXT_TO_IMAGE_DEPLOYMENT.md](./documentation/TEXT_TO_IMAGE_DEPLOYMENT.md)
+
+#### Step 5: Deploy Magpie TTS NIM (Optional)
 
 For text-to-speech output with 40+ multilingual voices:
 
@@ -314,7 +314,7 @@ Wait for initialization (may take several minutes). Check status at `http://loca
 
 For more details: https://build.nvidia.com/nvidia/magpie-tts-multilingual
 
-#### Step 5: Browser Access for Microphone
+#### Step 6: Browser Access for Microphone
 
 Modern browsers (Chrome, Firefox, Edge) require **HTTPS** or **localhost** for microphone access due to security policies.
 
@@ -386,7 +386,8 @@ For more details about the Magpie TTS model, visit: https://build.nvidia.com/nvi
 
 For detailed documentation, see the [documentation directory](./documentation/):
 
-- **[Nemotron Deployment Guide](./documentation/NEMOTRON_DEPLOYMENT.md)** ⭐ Complete guide for deploying Nemotron 9B and 49B models
+- **[Nemotron 49B Deployment Guide](./documentation/NEMOTRON_DEPLOYMENT.md)** ⭐ Complete guide for deploying Nemotron 49B FP4
+- **[Text-to-Image Deployment Guide](./documentation/TEXT_TO_IMAGE_DEPLOYMENT.md)** 🎨 Stable Diffusion 3.5 Large deployment and usage
 - **[Voice Setup Guide](./documentation/VOICE_INPUT_SETUP.md)** - Complete setup for voice input (ASR) and output (TTS)
 - **[RAG Configuration Guide](./CONFIGURATION_GAPS.md)** - RAG Blueprint integration and configuration
 - **[Release Notes v1.2](./documentation/RELEASE_v1.2.md)** - Latest release with full voice-to-voice support
@@ -401,7 +402,7 @@ For detailed documentation, see the [documentation directory](./documentation/):
 - [RAG Deployment Reference](https://github.com/stanicm/rag)
 
 ### Models
-- [Nemotron Nano 9B](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2) - Lightweight LLM (65-88GB VRAM)
 - [Nemotron 49B](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) - Flagship LLM (66-91GB VRAM)
-- [Parakeet 0.6B ASR](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr) - Speech-to-Text
-- [Magpie TTS Multilingual](https://build.nvidia.com/nvidia/magpie-tts-multilingual) - Text-to-Speech
+- [Stable Diffusion 3.5 Large](https://build.nvidia.com/stabilityai/stable-diffusion-3-5-large) - Text-to-Image (~30GB VRAM)
+- [Parakeet 0.6B ASR](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr) - Speech-to-Text (~2-4GB VRAM)
+- [Magpie TTS Multilingual](https://build.nvidia.com/nvidia/magpie-tts-multilingual) - Text-to-Speech (~4-6GB VRAM)
