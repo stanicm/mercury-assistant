@@ -16,7 +16,10 @@ Mercury is an AI assistant built using the NVIDIA NeMo Agent Toolkit (NAT), NVID
    - Support for multiple AI models (single LLMs)
    - Real-time response streaming
 
-*Note that the RAG setup in the Mercury agent is set up such that it expects a rag server up and running on port 8081. The RAG Blueprint from NVIDIA is not a part of this repository for now, so if you would like to set the RAG up, we would direct you to the following page: https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline
+*Note that the RAG setup in the Mercury agent is configured to connect to a RAG server running on port 8081. For RAG deployment, see:
+- Official NVIDIA RAG Blueprint: https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline
+- Deployment reference: https://github.com/stanicm/rag
+- Local deployment guide: [CONFIGURATION_GAPS.md](./CONFIGURATION_GAPS.md)
 
 ## Component Usage
 
@@ -226,10 +229,11 @@ Wait for the message: `{"status":"ready"}` when checking `http://localhost:9000/
 
 For more details: https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr
 
-#### Step 3: Deploy Nemotron Nano 9B LLM (Required for Mercury Agent)
+#### Step 3: Deploy Nemotron LLM (Required for Mercury Agent)
 
-**Standard deployment (~88GB VRAM)**:
+**Option A: Nemotron Nano 9B** (Lightweight, ~65-88GB VRAM)
 
+Standard deployment (~88GB VRAM):
 ```bash
 docker run -d --rm --name=nemotron-nano-9b \
     --gpus all \
@@ -239,8 +243,7 @@ docker run -d --rm --name=nemotron-nano-9b \
     nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
 ```
 
-**Memory-optimized deployment (~65GB VRAM)** - Recommended for GPUs with limited VRAM:
-
+Memory-optimized deployment (~65GB VRAM):
 ```bash
 docker run -d --rm --name=nemotron-nano-9b \
     --gpus all \
@@ -255,18 +258,41 @@ docker run -d --rm --name=nemotron-nano-9b \
     nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
 ```
 
-**Memory optimization saves 23GB VRAM** (88GB → 65GB) using:
-- `NIM_MAX_BATCH_SIZE=1`: Single request processing
-- `NIM_MAX_MODEL_LEN=4096`: Reduced sequence length
-- `NIM_KVCACHE_PERCENT=0.6`: 60% memory for KV cache
-- `NIM_LOW_MEMORY_MODE=1`: Low memory optimizations
-- `NIM_KV_CACHE_HOST_MEM_FRACTION=0.6`: Host memory for KV cache
+**Option B: Nemotron 49B FP4** ⭐ Flagship Model (~66-91GB VRAM)
 
-Wait for initialization. Check status at `http://localhost:8000/v1/health/ready`
+Memory-optimized deployment (~66GB VRAM) - Recommended:
+```bash
+export NGC_API_KEY="your-ngc-api-key"
+export LOCAL_NIM_CACHE=~/.cache/nim
+export NIM_MODEL_PROFILE='496a3bcf32f7c7e81e59b1c17395d49b6c412dcb9e94d1bd4675c7ab61ed4b8c'
+export NIM_MANIFEST_ALLOW_UNSAFE=1
 
-For more details: 
-- Model page: https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2
-- Detailed deployment guide: [documentation/NEMOTRON_DEPLOYMENT.md](./documentation/NEMOTRON_DEPLOYMENT.md)
+docker run -d --name nemotron-49b-fp4 \
+    --gpus all \
+    --shm-size=16GB \
+    -e NGC_API_KEY \
+    -e NIM_MANIFEST_ALLOW_UNSAFE \
+    -e NIM_MODEL_PROFILE \
+    -e NIM_MAX_MODEL_LEN=65000 \
+    -e NIM_KVCACHE_PERCENT=0.5 \
+    -e NIM_LOW_MEMORY_MODE=1 \
+    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.5 \
+    -v "$LOCAL_NIM_CACHE:/opt/nim/.cache" \
+    -u $(id -u) \
+    -p 8999:8000 \
+    nvcr.io/nim/nvidia/llama-3.3-nemotron-super-49b-v1.5:latest
+```
+
+**Note:** If using Nemotron 49B (port 8999), update Mercury Agent config:
+```bash
+# Edit mercury_agent/configs/config.yml
+# Change all base_url from http://localhost:8000/v1 to http://localhost:8999/v1
+# Change all model_name to nvidia/llama-3.3-nemotron-super-49b-v1.5
+```
+
+**For detailed deployment options, see:**
+- [documentation/NEMOTRON_DEPLOYMENT.md](./documentation/NEMOTRON_DEPLOYMENT.md) - Complete guide with both 9B and 49B models
+- Model comparison, memory optimization strategies, and troubleshooting
 
 #### Step 4: Deploy Magpie TTS NIM (Optional)
 
@@ -360,15 +386,22 @@ For more details about the Magpie TTS model, visit: https://build.nvidia.com/nvi
 
 For detailed documentation, see the [documentation directory](./documentation/):
 
+- **[Nemotron Deployment Guide](./documentation/NEMOTRON_DEPLOYMENT.md)** ⭐ Complete guide for deploying Nemotron 9B and 49B models
 - **[Voice Setup Guide](./documentation/VOICE_INPUT_SETUP.md)** - Complete setup for voice input (ASR) and output (TTS)
+- **[RAG Configuration Guide](./CONFIGURATION_GAPS.md)** - RAG Blueprint integration and configuration
 - **[Release Notes v1.2](./documentation/RELEASE_v1.2.md)** - Latest release with full voice-to-voice support
 - **[Modernization Summary](./documentation/MODERNIZATION_SUMMARY.md)** - NAT v1.3.0 upgrade details
 - **[Development Log](./documentation/DEVELOPMENT_LOG.md)** - Development history and technical decisions
 
 ## 🔗 External Resources
 
+### Core Frameworks
 - [NVIDIA NeMo Agent Toolkit](https://docs.nvidia.com/nat/)
-- [Parakeet 0.6B ASR](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr)
-- [Magpie TTS Multilingual](https://build.nvidia.com/nvidia/magpie-tts-multilingual)
-- [Nemotron Nano 9B](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2)
 - [NVIDIA RAG Blueprint](https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline)
+- [RAG Deployment Reference](https://github.com/stanicm/rag)
+
+### Models
+- [Nemotron Nano 9B](https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2) - Lightweight LLM (65-88GB VRAM)
+- [Nemotron 49B](https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5) - Flagship LLM (66-91GB VRAM)
+- [Parakeet 0.6B ASR](https://build.nvidia.com/nvidia/parakeet-ctc-0_6b-asr) - Speech-to-Text
+- [Magpie TTS Multilingual](https://build.nvidia.com/nvidia/magpie-tts-multilingual) - Text-to-Speech
