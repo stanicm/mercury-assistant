@@ -242,7 +242,10 @@ document.addEventListener('DOMContentLoaded', function() {
             removeLoadingIndicator(loadingId);
             // Store the response text before adding it to chat
             const responseText = data.text;
-            addMessageToChat('ai', responseText);
+            const imageData = data.image || null;
+            
+            // Add message with optional image data
+            addMessageToChat('ai', responseText, [], imageData);
             
             // If audio output is enabled, generate TTS with only the latest response
             if (outputModeToggle.checked) {
@@ -259,7 +262,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    function addMessageToChat(sender, text, attachments = []) {
+    function addMessageToChat(sender, text, attachments = [], imageData = null) {
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message', sender === 'user' ? 'user-message' : 'ai-message');
     
@@ -305,6 +308,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 textP.style.margin = '0';
                 messageDiv.appendChild(textP);
             }
+        }
+    
+        // Add generated image if present
+        if (imageData && imageData.hasImage) {
+            console.log('Adding generated image to chat:', imageData);
+            const imageContainer = document.createElement('div');
+            imageContainer.classList.add('generated-image-container');
+            imageContainer.style.marginTop = '15px';
+            imageContainer.style.borderRadius = '8px';
+            imageContainer.style.overflow = 'hidden';
+            imageContainer.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+            
+            const img = document.createElement('img');
+            img.src = imageData.url;
+            img.alt = imageData.prompt || 'Generated image';
+            img.classList.add('generated-image');
+            img.style.maxWidth = '512px';
+            img.style.width = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            img.style.borderRadius = '8px';
+            
+            // Add loading indicator
+            img.onload = () => {
+                console.log('Image loaded successfully:', imageData.filename);
+            };
+            
+            img.onerror = () => {
+                console.error('Failed to load image:', imageData.url);
+                img.alt = 'Failed to load image';
+                img.style.border = '2px solid #ff6b6b';
+            };
+            
+            imageContainer.appendChild(img);
+            
+            // Add image info caption (optional)
+            if (imageData.seed || imageData.size) {
+                const caption = document.createElement('div');
+                caption.style.fontSize = '0.85em';
+                caption.style.color = '#666';
+                caption.style.marginTop = '8px';
+                caption.style.fontStyle = 'italic';
+                caption.textContent = `${imageData.size || ''} • Seed: ${imageData.seed || 'N/A'}`;
+                imageContainer.appendChild(caption);
+            }
+            
+            messageDiv.appendChild(imageContainer);
         }
     
         // Add attachments if any

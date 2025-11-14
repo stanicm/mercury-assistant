@@ -1,0 +1,74 @@
+# Mercury Assistant - Cursor Rules
+
+## Project Context
+This is the Mercury Assistant project - an AI agent system with RAG capabilities, built using:
+- Haystack for agent orchestration
+- LangChain for research tools
+- NVIDIA AI endpoints for LLM inference
+- A web interface for user interaction
+
+## Important Reference Files
+
+### NVIDIA Model Catalog
+Location: `/home/milos/06_Playground/NVIDIA_MODEL_CATALOG.md`
+Contains: Available NVIDIA AI Foundation model endpoints, context windows, LangChain integration code, and usage notes.
+
+### Project Documentation
+- Development logs: `documentation/DEVELOPMENT_LOG.md`
+- Deployment guide: `documentation/NEMOTRON_DEPLOYMENT.md`
+- Voice setup: `documentation/VOICE_INPUT_SETUP.md`
+
+## External Documentation Links
+<!-- Priority links to scan first when searching for solutions -->
+
+### NVIDIA Documentation (Priority Resources)
+- NVIDIA NIM Documentation: https://docs.nvidia.com/nim/
+- NVIDIA Docs Hub: https://docs.nvidia.com/
+- NVIDIA Omniverse Docs: https://docs.nvidia.com/omniverse/index.html
+- NVIDIA AI Endpoints: https://build.nvidia.com/
+- LangChain NVIDIA Integration: https://python.langchain.com/docs/integrations/platforms/nvidia
+
+### NVIDIA GitHub Repositories (Priority Resources)
+- NVIDIA Main: https://github.com/NVIDIA
+- NVIDIA Omniverse: https://github.com/NVIDIA-Omniverse
+- NVIDIA Isaac ROS: https://github.com/NVIDIA-ISAAC-ROS
+- NVIDIA AI Blueprints: https://github.com/NVIDIA-AI-Blueprints
+- NVIDIA Cosmos: https://github.com/nvidia-cosmos
+
+### Framework Documentation
+- Haystack: https://docs.haystack.deepset.ai/
+- LangChain: https://python.langchain.com/
+
+
+## Coding Conventions
+
+### Python
+- Follow PEP 8 style guidelines
+- Use type hints where applicable
+- Prefer f-strings for string formatting
+
+### Configuration
+- Config files located in: `mercury_agent/configs/`
+- Main config: `config.yml`
+- Enhanced config: `config_enhanced.yml`
+
+### File Structure
+- Agent code: `mercury_agent/src/aiq_mercury_agent/`
+- Interface: `mercury_interface/`
+- Tests: `mercury_agent/tests/`
+
+## Development Notes
+
+### Local Testing
+- Test files: `test_ingest_small.py`, `ingest_sph_documents.py`
+- Evaluation datasets: `mercury_agent/data/eval/`
+
+### API Configuration
+- Default LLM endpoint: configured in `config.yml`
+- Current base_url setting at line 42
+
+## Best Practices
+- Always check config.yml for current endpoint settings before suggesting API changes
+- Keep sensitive API keys and internal endpoints out of public documentation
+- Test changes with small datasets first using test scripts
+

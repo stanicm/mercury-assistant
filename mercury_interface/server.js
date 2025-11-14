@@ -30,6 +30,49 @@ if (!process.env.OPENAI_API_KEY) {
 let recordProcess = null;
 const outputFilePath = '/tmp/mercury_recording.wav'; // Using /tmp directory for temporary audio file
 
+/**
+ * Parse image metadata from Mercury Agent response
+ * Detects if response contains generated image information
+ * @param {string} response - The agent's response text
+ * @returns {object} - Object containing image info or null
+ */
+function parseImageMetadata(response) {
+  try {
+    // Check if response contains image metadata (location marker)
+    const imagePathMatch = response.match(/📁 Location:\s*(.+\.jpg)/);
+    
+    if (imagePathMatch) {
+      const fullPath = imagePathMatch[1].trim();
+      const filename = path.basename(fullPath);
+      
+      // Extract other metadata if present
+      const promptMatch = response.match(/📝 Prompt:\s*(.+)/);
+      const seedMatch = response.match(/🎲 Seed:\s*(\d+)/);
+      const sizeMatch = response.match(/📏 Size:\s*(\d+x\d+)/);
+      const timeMatch = response.match(/⏱️ Generation time:\s*([\d.]+)s/);
+      
+      const imageInfo = {
+        hasImage: true,
+        filename: filename,
+        fullPath: fullPath,
+        url: `/api/images/${filename}`,
+        prompt: promptMatch ? promptMatch[1].trim() : null,
+        seed: seedMatch ? seedMatch[1] : null,
+        size: sizeMatch ? sizeMatch[1] : null,
+        generationTime: timeMatch ? timeMatch[1] : null
+      };
+      
+      console.log('Detected image metadata:', imageInfo);
+      return imageInfo;
+    }
+    
+    return { hasImage: false };
+  } catch (error) {
+    console.error('Error parsing image metadata:', error);
+    return { hasImage: false };
+  }
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -45,6 +88,29 @@ const upload = multer({ storage: storage });
 // Root route to serve the HTML file
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// API endpoint to serve generated images
+app.get('/api/images/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    // Sanitize filename to prevent directory traversal
+    const safeFilename = path.basename(filename);
+    const imagePath = path.join('/tmp/mercury_images', safeFilename);
+    
+    console.log(`Image request for: ${safeFilename}`);
+    
+    if (fs.existsSync(imagePath)) {
+      console.log(`Serving image: ${imagePath}`);
+      res.sendFile(imagePath);
+    } else {
+      console.error(`Image not found: ${imagePath}`);
+      res.status(404).json({ error: 'Image not found' });
+    }
+  } catch (error) {
+    console.error('Error serving image:', error);
+    res.status(500).json({ error: 'Failed to serve image' });
+  }
 });
 
 // API endpoint to handle browser-uploaded audio for transcription
@@ -377,6 +443,18 @@ app.post('/api/chat', async (req, res) => {
             .trim();                // Remove extra whitespace
           
           console.log('Extracted content:', cleanContent);
+          
+          // Check if response contains image metadata
+          const imageInfo = parseImageMetadata(cleanContent);
+          
+          if (imageInfo.hasImage) {
+            console.log('Response contains image, including metadata in response');
+            return res.json({ 
+              text: cleanContent,
+              image: imageInfo
+            });
+          }
+          
           return res.json({ text: cleanContent });
         }
 

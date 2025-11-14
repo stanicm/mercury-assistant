@@ -1,247 +1,31 @@
-# Nemotron Model Deployment Guide
+# Nemotron 49B (Llama 3.3 Super) Deployment Guide
 
-This guide covers deploying NVIDIA's Nemotron models locally using Docker for use with Mercury AI Assistant.
+This guide covers deploying NVIDIA's Nemotron 49B FP4 model locally using Docker for use with Mercury AI Assistant.
 
-## Available Models
+## Model Overview
 
-### Nemotron Nano 9B
-A powerful 9-billion parameter language model optimized for:
-- Fast inference
-- High-quality text generation
-- Multi-agent workflows
-- Reasoning capabilities
-
-### Nemotron 49B (Llama 3.3 Super)
-A flagship 49-billion parameter model with enhanced capabilities:
+**Nemotron 49B (Llama 3.3 Super)** is NVIDIA's flagship 49-billion parameter language model with enhanced capabilities:
 - Advanced reasoning with chain-of-thought
 - Superior instruction following
 - Extended context support (up to 128K)
 - Available in FP4 quantization for reduced memory footprint
+- Optimized for local deployment with memory-saving configurations
 
 ## Prerequisites
 
 - NVIDIA GPU with CUDA support
 - Docker with NVIDIA Container Toolkit installed
 - NGC API key
-- **For Nano 9B**: Minimum 65GB VRAM (memory-optimized) or 88GB (standard)
-- **For 49B FP4**: Minimum 66GB VRAM (memory-optimized) or 91GB (standard)
+- **VRAM Requirements**:
+  - Minimum 66GB VRAM (memory-optimized deployment)
+  - 91GB VRAM (standard deployment)
+  - 95GB+ VRAM recommended for multi-model deployments
 
 ## Deployment Options
 
 ---
 
-# Nemotron Nano 9B Deployment
-
-### Standard Deployment (~88GB VRAM)
-
-Basic deployment with default settings:
-
-```bash
-docker run -d --rm --name=nemotron-nano-9b \
-    --gpus all \
-    --shm-size=16GB \
-    -e NGC_API_KEY \
-    -p 8000:8000 \
-    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
-```
-
-**Characteristics:**
-- Uses ~88GB VRAM
-- Maximum performance
-- Suitable for GPUs with >90GB VRAM
-
-### Memory-Optimized Deployment (~65GB VRAM) ⭐ Recommended
-
-Optimized for memory-constrained GPUs:
-
-```bash
-docker run -d --rm --name=nemotron-nano-9b \
-    --gpus all \
-    --shm-size=16GB \
-    -e NGC_API_KEY \
-    -e NIM_MAX_BATCH_SIZE=1 \
-    -e NIM_MAX_MODEL_LEN=4096 \
-    -e NIM_KVCACHE_PERCENT=0.6 \
-    -e NIM_LOW_MEMORY_MODE=1 \
-    -e NIM_KV_CACHE_HOST_MEM_FRACTION=0.6 \
-    -p 8000:8000 \
-    nvcr.io/nim/nvidia/nvidia-nemotron-nano-9b-v2:latest
-```
-
-**Characteristics:**
-- Uses ~65GB VRAM (saves 23GB!)
-- Minimal performance impact
-- Allows running alongside Parakeet ASR + Magpie TTS on GPUs with ~75GB+ VRAM
-
-## Memory Optimization Parameters Explained
-
-### NIM_MAX_BATCH_SIZE=1
-- **Purpose**: Limits concurrent request processing
-- **Effect**: Reduces memory overhead from batching
-- **Trade-off**: Lower throughput for multiple simultaneous requests
-- **Best for**: Single-user or low-concurrency scenarios
-
-### NIM_MAX_MODEL_LEN=4096
-- **Purpose**: Sets maximum sequence length (tokens)
-- **Effect**: Reduces KV cache allocation
-- **Trade-off**: Shorter maximum context window
-- **Default**: 8192 or higher
-- **Best for**: Most conversational AI tasks
-
-### NIM_KVCACHE_PERCENT=0.6
-- **Purpose**: Allocates 60% of available memory for KV cache
-- **Effect**: Leaves more memory for model weights and computation
-- **Default**: 0.9 (90%)
-- **Best for**: Multi-model deployments
-
-### NIM_LOW_MEMORY_MODE=1
-- **Purpose**: Enables various memory-saving optimizations
-- **Effect**: Activates memory-efficient algorithms and data structures
-- **Trade-off**: Slight latency increase
-- **Best for**: Memory-constrained environments
-
-### NIM_KV_CACHE_HOST_MEM_FRACTION=0.6
-- **Purpose**: Uses CPU/host memory for overflow KV cache
-- **Effect**: Offloads some cache to system RAM when GPU memory is full
-- **Trade-off**: Slightly slower cache access
-- **Best for**: Systems with abundant RAM but limited VRAM
-
-## Verification
-
-### 1. Check Container Status
-
-```bash
-docker ps --filter "name=nemotron"
-```
-
-Expected output shows container running.
-
-### 2. Monitor Logs
-
-```bash
-docker logs -f nemotron-nano-9b
-```
-
-Wait for: `INFO: Uvicorn running on http://0.0.0.0:8000`
-
-### 3. Test Health Endpoint
-
-```bash
-curl http://localhost:8000/v1/health/ready
-```
-
-Expected response: `{"status":"ready"}`
-
-### 4. Test Chat Completion
-
-```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "nvidia/nvidia-nemotron-nano-9b-v2",
-    "messages": [{"role":"user", "content":"What is 2+2?"}],
-    "max_tokens": 64
-  }'
-```
-
-## GPU Memory Monitoring
-
-### Check VRAM Usage
-
-```bash
-nvidia-smi --query-gpu=name,memory.used,memory.free,memory.total --format=csv
-```
-
-### Expected Memory Usage
-
-**Standard deployment**:
-```
-Memory Used: ~88GB
-```
-
-**Memory-optimized deployment**:
-```
-Memory Used: ~65GB
-```
-
-## Multi-Model Deployment
-
-When running multiple NIMs on the same GPU:
-
-### Configuration Example (97GB GPU)
-
-1. **Nemotron Nano 9B** (memory-optimized): ~65GB
-2. **Parakeet 0.6B ASR**: ~2-4GB
-3. **Magpie TTS**: ~4-6GB
-
-**Total**: ~73GB (fits comfortably in 97GB)
-
-### Deployment Order
-
-1. Start Nemotron first (largest VRAM footprint)
-2. Start Parakeet ASR
-3. Start Magpie TTS last
-
-This ensures proper memory allocation.
-
-## Troubleshooting
-
-### Issue: Out of Memory Error
-
-**Symptom**: Container crashes with CUDA OOM error
-
-**Solutions**:
-1. Use memory-optimized parameters
-2. Reduce `NIM_MAX_MODEL_LEN` further (e.g., 2048)
-3. Ensure no other processes are using GPU
-4. Stop other NIMs and restart in order
-
-### Issue: Slow Initialization
-
-**Symptom**: Container takes >10 minutes to start
-
-**Solutions**:
-1. Check NGC_API_KEY is set correctly
-2. Verify internet connection (model download)
-3. Monitor disk space (models are large)
-4. Check Docker logs for specific errors
-
-### Issue: Container Exits Immediately
-
-**Symptom**: Container starts then stops
-
-**Solutions**:
-1. Check NGC authentication: `echo $NGC_API_KEY`
-2. Verify NVIDIA Container Toolkit: `nvidia-smi`
-3. Review logs: `docker logs nemotron-nano-9b`
-4. Ensure sufficient disk space
-
-## Performance Tuning
-
-### Latency Optimization
-
-For lowest latency (trading memory for speed):
-
-```bash
--e NIM_MAX_BATCH_SIZE=1  # Already set in memory-optimized
--e NIM_MAX_MODEL_LEN=2048  # Shorter context
-```
-
-### Throughput Optimization
-
-For maximum throughput (requires more VRAM):
-
-```bash
--e NIM_MAX_BATCH_SIZE=4
--e NIM_MAX_MODEL_LEN=4096
--e NIM_KVCACHE_PERCENT=0.8
-```
-
----
-
-# Nemotron 49B (Llama 3.3 Super) Deployment
-
-## Standard Deployment (~91GB VRAM)
+# Standard Deployment (~91GB VRAM)
 
 Basic FP4 quantized deployment:
 
@@ -319,13 +103,37 @@ The 49B model benefits from the same optimization parameters as the 9B model, bu
   - Critical for 49B model with large context
   - Requires adequate system RAM (32GB+ recommended)
 
-### Testing the 49B Model
+## Verification
+
+### 1. Check Container Status
 
 ```bash
-# Test health
-curl http://localhost:8999/v1/health/ready
+docker ps --filter "name=nemotron-49b"
+```
 
-# Test chat completion
+Expected output shows container running with port mapping `0.0.0.0:8999->8000/tcp`.
+
+### 2. Monitor Logs
+
+Monitor the initialization process (can take 10-20 minutes):
+
+```bash
+docker logs -f nemotron-49b-fp4-optimized
+```
+
+Wait for: `INFO: Uvicorn running on http://0.0.0.0:8000`
+
+### 3. Test Health Endpoint
+
+```bash
+curl http://localhost:8999/v1/health/ready
+```
+
+Expected response: `{"status":"ready"}`
+
+### 4. Test Chat Completion
+
+```bash
 curl -X POST http://localhost:8999/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
@@ -335,25 +143,132 @@ curl -X POST http://localhost:8999/v1/chat/completions \
   }'
 ```
 
----
+Expected response includes `"content": "2+2 equals 4."`
+
+## GPU Memory Monitoring
+
+### Check VRAM Usage
+
+```bash
+nvidia-smi --query-gpu=name,memory.used,memory.free,memory.total --format=csv
+```
+
+### Expected Memory Usage
+
+**Standard deployment**:
+```
+Memory Used: ~91GB
+```
+
+**Memory-optimized deployment** ⭐ Recommended:
+```
+Memory Used: ~66GB
+```
+
+## Multi-Model Deployment
+
+When running multiple NIMs on the same GPU:
+
+### Configuration Example (98GB GPU)
+
+1. **Nemotron 49B FP4** (memory-optimized): ~66GB
+2. **Stable Diffusion 3.5 Large**: ~30GB
+
+**Total**: ~96GB (fits in 98GB GPU)
+
+### Configuration Example (98GB GPU - ASR/TTS Focus)
+
+1. **Nemotron 49B FP4** (memory-optimized): ~66GB
+2. **Parakeet 0.6B ASR**: ~2-4GB
+3. **Magpie TTS**: ~4-6GB
+
+**Total**: ~74GB (leaves room for RAG NIMs)
+
+### Deployment Order
+
+1. Start Nemotron 49B first (largest VRAM footprint)
+2. Start other NIMs in order of size
+3. Monitor VRAM usage with `nvidia-smi`
+
+This ensures proper memory allocation.
+
+## Troubleshooting
+
+### Issue: Out of Memory Error
+
+**Symptom**: Container crashes with CUDA OOM error
+
+**Solutions**:
+1. Ensure using memory-optimized parameters
+2. Reduce `NIM_MAX_MODEL_LEN` further (e.g., to 32000)
+3. Stop other GPU-intensive containers
+4. Verify no other processes are using GPU: `nvidia-smi`
+
+### Issue: Slow Initialization
+
+**Symptom**: Container takes >20 minutes to start
+
+**Solutions**:
+1. Verify NGC_API_KEY: `echo $NGC_API_KEY`
+2. Check internet connection (model download ~25GB)
+3. Monitor disk space: `df -h $LOCAL_NIM_CACHE`
+4. Check Docker logs for specific errors
+
+### Issue: Container Exits Immediately
+
+**Symptom**: Container starts then stops
+
+**Solutions**:
+1. Check NGC authentication: `echo $NGC_API_KEY`
+2. Verify model profile: `echo $NIM_MODEL_PROFILE`
+3. Review logs: `docker logs nemotron-49b-fp4-optimized`
+4. Ensure sufficient disk space (>50GB free)
+
+### Issue: Port Mapping Error (8999:8999)
+
+**Symptom**: Model accessible on 8999 but container mapping shows `8999:8999`
+
+**Cause**: Container was launched with incorrect port mapping
+
+**Solution**: 
+```bash
+# Stop and remove existing container
+docker stop nemotron-49b-fp4-optimized
+docker rm nemotron-49b-fp4-optimized
+
+# Relaunch with correct mapping
+docker run -d --name nemotron-49b-fp4-optimized \
+    ... \
+    -p 8999:8000 \  # Correct: host 8999 -> container 8000
+    ...
+```
+
+## Performance Tuning
+
+### Latency Optimization
+
+For lowest latency (already optimal in memory-optimized config):
+
+```bash
+-e NIM_MAX_BATCH_SIZE=1  # Already set
+-e NIM_MAX_MODEL_LEN=32000  # Even shorter context
+```
+
+### Context Window Optimization
+
+For maximum context (up to 128K):
+
+```bash
+-e NIM_MAX_MODEL_LEN=131072  # Full 128K context
+-e NIM_KVCACHE_PERCENT=0.7  # More cache
+-e NIM_KV_CACHE_HOST_MEM_FRACTION=0.3  # Less host offload
+```
+
+**Note**: This will increase VRAM usage to ~85-90GB.
 
 ## Integration with Mercury
 
-Mercury Agent can use either Nemotron model when configured in `mercury_agent/configs/config.yml`:
-
-### For Nemotron Nano 9B:
-
-```yaml
-llms:
-  nim_llm:
-    _type: nim
-    model_name: nvidia/nvidia-nemotron-nano-9b-v2
-    base_url: "http://localhost:8000/v1"
-    temperature: 0.0
-    max_tokens: 1024
-```
-
-### For Nemotron 49B:
+Mercury Agent uses Nemotron 49B when configured in `mercury_agent/configs/config.yml`:
 
 ```yaml
 llms:
@@ -363,37 +278,33 @@ llms:
     base_url: "http://localhost:8999/v1"
     temperature: 0.0
     max_tokens: 1024
+    timeout: 180
   chitchat_llm:
     _type: nim
     model_name: nvidia/llama-3.3-nemotron-super-49b-v1.5
     base_url: "http://localhost:8999/v1"
     temperature: 0.7
     max_tokens: 1024
+    timeout: 180
 ```
 
-## Model Comparison
+### Port Configuration
 
-| Feature | Nemotron Nano 9B | Nemotron 49B FP4 |
-|---------|------------------|------------------|
-| **Parameters** | 9B | 49B |
-| **VRAM (Standard)** | ~88GB | ~91GB |
-| **VRAM (Optimized)** | ~65GB | ~66GB |
-| **Context Window** | 4K-8K | 65K-128K |
-| **Port** | 8000 | 8999 |
-| **Best For** | Fast inference, multi-agent | Advanced reasoning, long context |
-| **Quantization** | FP16 | FP4 |
+- **Host Port**: 8999 (accessible from Mercury)
+- **Container Port**: 8000 (internal)
+- **Endpoint**: `http://localhost:8999/v1/chat/completions`
 
 ## Resources
 
-- **Nemotron Nano 9B**: https://build.nvidia.com/nvidia/nvidia-nemotron-nano-9b-v2
-- **Nemotron 49B**: https://build.nvidia.com/nvidia/llama-3.3-nemotron-super-49b-v1.5
+- **Nemotron 49B**: https://build.nvidia.com/nvidia/llama-3_3-nemotron-super-49b-v1_5
 - **NIM Documentation**: https://docs.nvidia.com/nim/
 - **Mercury Documentation**: [../README.md](../README.md)
+- **Text-to-Image Guide**: [TEXT_TO_IMAGE_DEPLOYMENT.md](./TEXT_TO_IMAGE_DEPLOYMENT.md)
 
 ## Version History
 
 | Version | Date | Notes |
 |---------|------|-------|
-| v1.0 | Nov 1, 2025 | Initial deployment with memory optimization parameters |
-| v2.0 | Nov 4, 2025 | Added Nemotron 49B FP4 deployment with memory optimization |
+| v1.0 | Nov 4, 2025 | Initial deployment with Nemotron 49B FP4 and memory optimization |
+| v1.1 | Nov 13, 2025 | Simplified guide, removed Nemotron 9B references, focused on 49B only |
 
