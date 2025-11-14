@@ -45,7 +45,7 @@ functions:
   # Text-to-Image generation tool configuration
   text2image:
     _type: text2image_tool
-    endpoint: "http://localhost:8000/v1/images/generations"  # Stable Diffusion 3.5 Large endpoint
+    endpoint: "http://localhost:8000/v1/infer"  # Stable Diffusion 3.5 Large endpoint
     output_dir: "/tmp/mercury_images"   # Directory to save generated images
     default_height: 1024                # Default image height (768-1344)
     default_width: 1024                 # Default image width (768-1344)

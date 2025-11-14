@@ -41,3 +41,4 @@ AIQToolkit/
 AgentIQ/
 workflows/ mercury_interface/mercury.log
 node_modules/
+mercury.log
